@@ -14,11 +14,18 @@ Metformin_gw38_mean<-mean(tmpDat$gw38[tmpDat$Group == "Metformin"], na.rm=T)
 StudyInsulinTest<- prop.test(x = c(sum(tmpDat$InsulinYN[tmpDat$Group== "Metformin"] == "Yes", na.rm=T),
                               sum(tmpDat$InsulinYN[tmpDat$Group== "Placebo"] == "Yes", na.rm=T)),
                         n = c(sum(tmpDat$Group == "Metformin"),sum(tmpDat$Group == "Placebo")))
-z_score<-sqrt(StudyInsulinTest$statistic)                              
-z_score
+z_score_squared_insulin<-sqrt(StudyInsulinTest$statistic)                              
 
-t.test(tmpDat$gw32[tmpDat$Group == "Metformin"], tmpDat$gw32[tmpDat$Group == "Placebo"])$statistic
-t.test(tmpDat$gw38[tmpDat$Group == "Metformin"], tmpDat$gw38[tmpDat$Group == "Placebo"])$statistic
+
+gw32_t_value<-t.test(tmpDat$gw32[tmpDat$Group == "Metformin"], tmpDat$gw32[tmpDat$Group == "Placebo"])$statistic
+gw38_t_value<-t.test(tmpDat$gw38[tmpDat$Group == "Metformin"], tmpDat$gw38[tmpDat$Group == "Placebo"])$statistic
+
+##Composites for Original study##
+##Squared##
+study_squared_composite<-z_score_squared_insulin+(gw32_t_value^2)+(gw38_t_value^2)
+##Not squared##
+study_non_squared_composite<-sqrt(z_score_squared_insulin)+gw32_t_value+gw38_t_value
+
 
 ## Previous permutation codes using mean ##
 permutation_function<-function(x){
@@ -96,3 +103,4 @@ squared_composite<-proportion_permutation_function(thesis.df$InsulinYN) +
 non_squared_composite<-sqrt(proportion_permutation_function(thesis.df$InsulinYN)) +
   continuous_permutation_function(thesis.df$gw32) +
   continuous_permutation_function(thesis.df$gw38)
+
