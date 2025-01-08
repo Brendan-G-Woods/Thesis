@@ -53,7 +53,7 @@ proportion_permutation_function<-function(x){
     permutation_chisquare[i]<-permutation_result$statistic
     i<- i +1
     if(i > 10000) break}
-  return(sqrt(permutation_chisquare))
+  return(permutation_chisquare)
 }
 
 summary(proportion_permutation_function(thesis.df$InsulinYN))
@@ -84,4 +84,15 @@ hist(continuous_permutation_function(thesis.df$gw38),
      breaks = 500, main= "Histogram of Permuted t-values of gw38 comparing Treatment Groups",
      xlab= "T-values gw38")
 
+## Creating the Composite ##
+Zi+t32+t38
+## The squared method ##
 
+squared_composite<-proportion_permutation_function(thesis.df$InsulinYN) +
+  ((continuous_permutation_function(thesis.df$gw32))^2) +
+  ((continuous_permutation_function(thesis.df$gw38))^2)
+
+## Non-squared method ##
+non_squared_composite<-sqrt(proportion_permutation_function(thesis.df$InsulinYN)) +
+  continuous_permutation_function(thesis.df$gw32) +
+  continuous_permutation_function(thesis.df$gw38)
