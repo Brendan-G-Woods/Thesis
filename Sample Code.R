@@ -30,7 +30,7 @@ study_non_squared_composite<-sqrt(z_score_squared_insulin)+gw32_t_value+gw38_t_v
 
 ## Z-score for Insulin ##
 proportion_permutation_function<-function(x){
-  permutation_chisquare<-numeric(10000)
+  permutation_chisquare<-numeric(100000)
   i <-1
   repeat{
     thesis.df$Group<-sample(thesis.df$Group, 535, replace = F)
@@ -39,7 +39,7 @@ proportion_permutation_function<-function(x){
                                   n = c(sum(thesis.df$Group == "Metformin"),sum(thesis.df$Group == "Placebo"))) 
     permutation_chisquare[i]<-permutation_result$statistic
     i<- i +1
-    if(i > 10000) break}
+    if(i > 100000) break}
   return(permutation_chisquare)
 }
 
@@ -50,14 +50,14 @@ hist(proportion_permutation_function(thesis.df$InsulinYN),
 
 ##T-values for gw32, gw 38 ##
 continuous_permutation_function<-function(x){
-  permutation_t_value<-numeric(10000)
+  permutation_t_value<-numeric(100000)
   i <-1
   repeat{
     thesis.df$Group<-sample(thesis.df$Group, 535, replace = F)
     permutation_result<-t.test(x[thesis.df$Group == "Metformin"], x[thesis.df$Group == "Placebo"])
     permutation_t_value[i]<-permutation_result$statistic
     i<- i +1
-    if(i > 10000) break}
+    if(i > 100000) break}
   return(permutation_t_value)
 }
 
@@ -99,3 +99,26 @@ p_value_squared_composite<-sum(squared_composite>study_squared_composite)/
   length(squared_composite)
 p_value_non_squared_composite<-sum(non_squared_composite<study_non_squared_composite)/
   length(non_squared_composite)
+
+##Power Code for Individual variables##
+power_function <- function(x) {
+  power_result <- numeric(100000)  
+  i <- 1
+  repeat {
+    placebo_group <- thesis.df[thesis.df$Group == "Placebo", ]
+    clean_placebo_group<-as.vector(na.omit(placebo_group[[x]]))
+    sampled_placebo <- sample(clean_placebo_group, 15, replace = T)
+    
+    metformin_group <- thesis.df[thesis.df$Group == "Metformin", ]
+    clean_metformin_group<-as.vector(na.omit(metformin_group[[x]]))
+    sampled_metformin <- sample(clean_metformin_group, 15, replace = T)
+    
+    t_test_result<- t.test(sampled_metformin, sampled_placebo)
+    power_result[i] <- t_test_result$statistic
+    i<- i +1
+    if(i > 100000) break}
+  return(sum(power_result<(-qnorm(0.975)))/100000)
+}
+power_function("gw32")
+power_function("gw38")
+power_function("binary_insulin")
