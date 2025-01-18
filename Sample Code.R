@@ -4,7 +4,8 @@ library(dplyr)
 load("\\Users\\brend\\Downloads\\data")
 ls
 View(tmpDat)
-
+library(ggplot2)
+library(hrbrthemes)
 ## Creating binary column for Insulin ##
 tmpDat$binary_insulin<-0
 tmpDat$binary_insulin[tmpDat$InsulinYN == "Yes"]<-1
@@ -31,14 +32,14 @@ study_non_squared_composite<-sqrt(z_score_squared_insulin)+gw32_t_value+gw38_t_v
 
 
 continuous_permutation_function<-function(x){
-  permutation_t_value<-numeric(100000)
+  permutation_t_value<-numeric(500000)
   i <-1
   repeat{
     thesis.df$Group<-sample(thesis.df$Group, 535, replace = F)
     permutation_result<-t.test(x[thesis.df$Group == "Metformin"], x[thesis.df$Group == "Placebo"])
     permutation_t_value[i]<-permutation_result$statistic
     i<- i +1
-    if(i > 100000) break}
+    if(i > 500000) break}
   return(permutation_t_value)
 }
 
@@ -65,6 +66,24 @@ non_squared_composite<-continuous_permutation_function(thesis.df$binary_insulin)
   continuous_permutation_function(thesis.df$gw32) +
   continuous_permutation_function(thesis.df$gw38)
 
+##Permuted Squared Test Statistic Graph##
+
+percentile_95<-quantile(squared_composite, 0.95)
+
+squared_composite.df<-data.frame(squared_composite)
+ggplot(squared_composite.df, aes(x= squared_composite))+
+  geom_histogram(bins = 200, fill = "darkslategray", color = "darkslategray")+
+  scale_x_continuous(limits = c(0, 20)) +
+  labs(x = "Squared Composite", y = "Frequency", title = "Squared Composite Test Statistic") +
+  geom_vline(xintercept = percentile_95, color = "red", linetype = "dashed", size = 0.75)+
+  annotate("text", x = percentile_95, y = 10000, label = "95th Percentile", color = "red", angle = 90, vjust = -0.5)+
+  theme_minimal()
+
+
+
+  
+
+
 ##P-value calculation##
 
 ##Individual variables##
@@ -80,6 +99,9 @@ p_value_squared_composite<-sum(squared_composite>study_squared_composite)/
   length(squared_composite)
 p_value_non_squared_composite<-sum(non_squared_composite<study_non_squared_composite)/
   length(non_squared_composite)
+
+
+#######################PPPPPPPPPPPPPPPPPPPPOOOOOOOOOOOOOOOOOOOOOOOOWWWWWWWWWWWWWWWWWWEEEEEEEEEEEEEEEEERRRRRRRRRRRRR###################
 
 ##Power Code for Individual variables##
 power_function <- function(x) {
@@ -139,4 +161,24 @@ power_function <- function(x, y, z) {
 
 power_function("gw32", "gw38", "binary_insulin")
 
-## Not very tidy, is this an issue? Also, is there a problem with how I used the squared composite when getting the proportion?
+## Not very tidy, is this an issue? Also, is there a problem with how I used the squared composite when getting the proportion? Should it be a variable of the function?
+
+## Power Chart, generated with 500,000 test statistic permutations, starting at a sample size of 30, with increments of 10
+## and ending at 80, with 500,000 resamples ##
+##Composite test statistic used was 95th quantile which is stored as APPLE (7.881899)##
+APPLE
+power_n_30<-0.219598
+power_n_40<-0.264418
+power_n_50<-0.314862
+power_n_60<-0.367066
+power_n_70<-0.418002
+power_n_80<-0.468156
+power_results<-c(power_n_30, power_n_40, power_n_50, power_n_60, power_n_70, power_n_80)
+sample_size<-c(30, 40, 50, 60, 70, 80)
+
+power_graph.df<-data.frame(sample_size, power_results)
+ggplot(power_graph.df, aes(x=sample_size, y=power_results)) +
+  geom_line( color="mediumseagreen", size=1.5, alpha=0.9, linetype=1) +
+  theme_classic() + labs(title = "Power of Permuted Test Statistics Method", x = "Sample Size", y= "Power")+
+  scale_x_continuous(limits = c(30, NA), expand = c(0, 0))  +
+  ylim(0, NA) 
