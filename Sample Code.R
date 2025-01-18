@@ -139,4 +139,4 @@ power_function <- function(x, y, z) {
 
 power_function("gw32", "gw38", "binary_insulin")
 
-## Not very tidy, is this an issue? Also, is there a problem with how I used the squared composite when getting the proportion?
+## Not very tidy, is this an issue? Also, is there a problem with how I used the squared composite when getting the proportion? Should the size to be sampled vary?
