@@ -4,9 +4,10 @@ library(dplyr)
 load("\\Users\\brend\\Downloads\\data")
 ls
 View(tmpDat)
+
 ## Creating binary column for Insulin ##
 tmpDat$binary_insulin<-0
-tmpDat$binary_insulin[thesis.df$InsulinYN == "Yes"]<-1
+tmpDat$binary_insulin[tmpDat$InsulinYN == "Yes"]<-1
 
 thesis.df<-tmpDat
 
@@ -26,29 +27,9 @@ study_squared_composite<-z_score_squared_insulin+(gw32_t_value^2)+(gw38_t_value^
 ##Not squared##
 study_non_squared_composite<-sqrt(z_score_squared_insulin)+gw32_t_value+gw38_t_value
 
-##Permutation Code for t-values for continuous data (gw32, gw38) and for z-score for binary data (InsulinYN) ##
+##Permutation Code for t-values for continuous data (gw32, gw38, binary_insulin) ##
 
-## Z-score for Insulin ##
-proportion_permutation_function<-function(x){
-  permutation_chisquare<-numeric(100000)
-  i <-1
-  repeat{
-    thesis.df$Group<-sample(thesis.df$Group, 535, replace = F)
-    permutation_result<-prop.test(x = c(sum(x[thesis.df$Group== "Metformin"] == "Yes", na.rm=T),
-                                        sum(x[thesis.df$Group== "Placebo"] == "Yes", na.rm=T)),
-                                  n = c(sum(thesis.df$Group == "Metformin"),sum(thesis.df$Group == "Placebo"))) 
-    permutation_chisquare[i]<-permutation_result$statistic
-    i<- i +1
-    if(i > 100000) break}
-  return(permutation_chisquare)
-}
 
-summary(proportion_permutation_function(thesis.df$InsulinYN))
-hist(proportion_permutation_function(thesis.df$InsulinYN),
-     breaks = 500, main= "Histogram of Permuted Z-scores of Insulin comparing Treatment Groups",
-     xlab= "Z-scores Insulin")
-
-##T-values for gw32, gw 38 ##
 continuous_permutation_function<-function(x){
   permutation_t_value<-numeric(100000)
   i <-1
@@ -72,7 +53,7 @@ hist(continuous_permutation_function(thesis.df$gw38),
      xlab= "T-values gw38")
 
 ## Creating the Composite ##
-Zi+t32+t38
+
 ## The squared method ##
 
 squared_composite<-((continuous_permutation_function(thesis.df$binary_insulin))^2) +
@@ -122,3 +103,40 @@ power_function <- function(x) {
 power_function("gw32")
 power_function("gw38")
 power_function("binary_insulin")
+
+##Power Code for Squared Composite##
+power_function <- function(x, y, z) {
+  power_result <- numeric(1000)  
+  i <- 1
+  repeat {
+    placebo_group <- tmpDat[tmpDat$Group == "Placebo", ]
+    clean_placebo_group1<-as.vector(na.omit(placebo_group[[x]]))
+    clean_placebo_group2<-as.vector(na.omit(placebo_group[[y]]))
+    clean_placebo_group3<-as.vector(na.omit(placebo_group[[z]]))
+    sampled_placebo1 <- sample(clean_placebo_group1, 15, replace = T)
+    sampled_placebo2 <- sample(clean_placebo_group2, 15, replace = T)
+    sampled_placebo3 <- sample(clean_placebo_group3, 15, replace = T)
+    
+    metformin_group <- tmpDat[tmpDat$Group == "Metformin", ]
+    clean_metformin_group1<-as.vector(na.omit(metformin_group[[x]]))
+    clean_metformin_group2<-as.vector(na.omit(metformin_group[[y]]))
+    clean_metformin_group3<-as.vector(na.omit(metformin_group[[z]]))
+    
+    sampled_metformin1 <- sample(clean_metformin_group1, 15, replace = T)
+    sampled_metformin2 <- sample(clean_metformin_group2, 15, replace = T)
+    sampled_metformin3 <- sample(clean_metformin_group3, 15, replace = T)
+    
+    t_test_result1<- t.test(sampled_metformin1, sampled_placebo1)
+    t_test_result2<- t.test(sampled_metformin2, sampled_placebo2)
+    t_test_result3<- t.test(sampled_metformin3, sampled_placebo3)
+    
+    
+    power_result[i] <- (((t_test_result1$statistic)^2)+((t_test_result2$statistic)^2)+((t_test_result3$statistic)^2))
+    i<- i +1
+    if(i > 1000) break}
+  return(sum((power_result>quantile(squared_composite, 0.95))/ 1000))
+}
+
+power_function("gw32", "gw38", "binary_insulin")
+
+## Not very tidy, is this an issue? Also, is there a problem with how I used the squared composite when getting the proportion?
