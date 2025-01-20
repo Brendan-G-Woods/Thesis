@@ -73,11 +73,13 @@ percentile_95<-quantile(squared_composite, 0.95)
 squared_composite.df<-data.frame(squared_composite)
 ggplot(squared_composite.df, aes(x= squared_composite))+
   geom_histogram(bins = 200, fill = "darkslategray", color = "darkslategray")+
-  scale_x_continuous(limits = c(0, 20)) +
+  scale_x_continuous(limits = c(0, 25)) +
   labs(x = "Squared Composite", y = "Frequency", title = "Squared Composite Test Statistic") +
   geom_vline(xintercept = percentile_95, color = "red", linetype = "dashed", size = 0.75)+
   annotate("text", x = percentile_95, y = 10000, label = "95th Percentile", color = "red", angle = 90, vjust = -0.5)+
-  theme_minimal()
+  theme_minimal()+
+  geom_vline( xintercept = study_squared_composite, color = "gold", size = 1 )+
+  annotate("text", x = study_squared_composite, y = 10000, label = "EMERGE Composite", color = "gold", angle = 90, vjust = -0.5)
 
 
 
@@ -180,7 +182,7 @@ sample_size<-c(30, 40, 50, 60, 70, 80)
 power_graph.df<-data.frame(sample_size, power_results)
 ggplot(power_graph.df, aes(x=sample_size, y=power_results)) +
   geom_line( color="mediumseagreen", size=1.5, alpha=0.9, linetype=1) +
-  theme_classic() + labs(title = "Power of Permuted Test Statistics Method", x = "Sample Size", y= "Power")+
+  theme_bw() + labs(title = "Power of Permuted Test Statistics Method", x = "Sample Size", y= "Power")+
   scale_x_continuous(limits = c(30, NA), expand = c(0, 0))  +
   ylim(0, NA) 
 
