@@ -26,7 +26,6 @@ output:
     pandoc_args: --mathjax
     number_sections: false
 knit: pagedown::chrome_print
-
 ---
 
 ```{css, echo=FALSE}
@@ -39,10 +38,12 @@ div.poster_title{
 .section h4 {
     break-after: column;
 }
+div.footnotes {
+    font-size: 18pt;
+}
 ```
 
 <!-- Don't change anything above, except the title and author names, unless you know what you are doing. -->
-
 
 ```{r, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE,
@@ -56,37 +57,44 @@ options(knitr.table.format = "html")
 library(tidyverse)
 library(plotly)
 library(kableExtra)
+library(posterdown)
+load("\\Users\\brend\\Downloads\\data")
+tmpDat$binary_insulin<-0
+tmpDat$binary_insulin[tmpDat$InsulinYN == "Yes"]<-1
+
+
+thesis.df<-tmpDat
 ```
-
-
 
 # Background and Problem
 
-This template has been produced using the `posterdown` package. It generates a standard conference-style poster layout. 
+This template has been produced using the `posterdown` package. It generates a standard conference-style poster layout.
 
 <!-- You can add references by inserting the following ^[reference details here] -->
 
-A common problem in clinical research is messed up data^[Evans 2010, doi: 10.6030/1939-067x-3.1.1]. It can lead to bias or nonsensical results. Appropriate statistical analysis can result in superb findings in such cases, with the right assumptions.
+A common problem in clinical research is messed up data[^1]. It can lead to bias or nonsensical results. Appropriate statistical analysis can result in superb findings in such cases, with the right assumptions.
 
+[^1]: Evans 2010, doi: 10.6030/1939-067x-3.1.1
 
 ## Objectives of Project
 
-1. Explain the statistical issue or research question in health data science to be investigated. 
-2. Explore a method of analysis.
-3. Apply any methods to selected datasets.
-
+1.  Explain the statistical issue or research question in health data science to be investigated.
+2.  Explore a method of analysis.
+3.  Apply any methods to selected datasets.
 
 # Data Sources and Datasets
 
-The syntax in this poster template and the `posterdown` package uses the same workflow approach as the R Markdown you know and love. 
+The syntax in this poster template and the `posterdown` package uses the same workflow approach as the R Markdown you know and love.
 
-You can even use the bibliography the same way: Our data were taken from a cluster-randomised trial ^[Murphy et al. 2005 doi: 10.1186/1468-6708-6-11], available from the [Irish Social Science Data Archive](https://www.ucd.ie/issda/data/). 
+You can even use the bibliography the same way: Our data were taken from a cluster-randomised trial [^2], available from the [Irish Social Science Data Archive](https://www.ucd.ie/issda/data/).
 
+[^2]: Murphy et al. 2005 doi: 10.1186/1468-6708-6-11
 
 <!-- This #### below causes the columns to break -->
+
 <!-- You can change where you put these breaks, and the "column_numbers: 4" argument in the YAMLS header to change the layout of the poster, with care! -->
 
-####
+#### 
 
 # Early Results / Descriptive Statistics of Datasets
 
@@ -107,16 +115,23 @@ ggplot(mpg, aes(displ, hwy, colour = class)) +
 ```
 
 ```{r morefigs, out.width='80%', echo=FALSE, fig.cap='Amazing, right?!', fig.height=4}
-
-df1 <- data.frame(dose=c("D0.5", "D1", "D2"),
-                len=c(4.2, 10, 29.5))
-ggplot(df1, aes(x=dose, y=len, fill=dose)) +
-  geom_bar(stat="identity") +
-  theme_minimal()
+continuous_permutation_function<-function(x){
+  permutation_t_value<-numeric(100000)
+  i <-1
+  repeat{
+    thesis.df$Group<-sample(thesis.df$Group, 535, replace = F)
+    permutation_result<-t.test(x[thesis.df$Group == "Metformin"], x[thesis.df$Group == "Placebo"])
+    permutation_t_value[i]<-permutation_result$statistic
+    i<- i +1
+    if(i > 100000) break}
+  return(permutation_t_value)
+}
+head(thesis.df)
 
 ```
 
 You can even make your plots interactive for the HTML version of the poster. You can use the HTML poster for the presentation session, and the PDF poster will be printed - so be sure the static version looks okay.
+
 ```{r interactiveplot, out.width='80%', echo=FALSE, fig.cap='Amazing, right?!', fig.height=4}
 
 gapminder <- read_csv("https://raw.githubusercontent.com/datavizpyr/data/master/gapminder-FiveYearData.csv")
@@ -140,22 +155,29 @@ ggplotly(p)
 
 ```
 
-####
+#### 
 
 # Next Project Steps
 
 We plan to conduct further analysis using:
 
-- Variable discombobulation ^[Massey et al. 2005 doi: 15.36.413]
-- Expand our minds with explosive machine learning ^[Smith et al. 1991 doi: 12.36.486].
+-   Variable discombobulation [^3]
+-   Expand our minds with explosive machine learning [^4].
+
+[^3]: Massey et al. 2005 doi: 15.36.413
+
+[^4]: Smith et al. 1991 doi: 12.36.486
 
 We will use the `plasticanalysis` package for this.
 
+
 # GitHub
 
-The code and datasets for this project can be viewed at our GitHub repository here: https://github.com/ 
+The code and datasets for this project can be viewed at our GitHub repository here: <https://github.com/>
+
 
 
 # References
+
 
 
