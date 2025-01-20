@@ -14,8 +14,8 @@ thesis.df<-tmpDat
 
 ## T-values and Z-scores for the original study ##
 StudyInsulinTest<- prop.test(x = c(sum(tmpDat$InsulinYN[tmpDat$Group== "Metformin"] == "Yes", na.rm=T),
-                              sum(tmpDat$InsulinYN[tmpDat$Group== "Placebo"] == "Yes", na.rm=T)),
-                        n = c(sum(tmpDat$Group == "Metformin"),sum(tmpDat$Group == "Placebo")))
+                                   sum(tmpDat$InsulinYN[tmpDat$Group== "Placebo"] == "Yes", na.rm=T)),
+                             n = c(sum(tmpDat$Group == "Metformin"),sum(tmpDat$Group == "Placebo")))
 z_score_squared_insulin<-sqrt(StudyInsulinTest$statistic)       ## This is not used, binary insulin more appropriate to use ##                       
 
 insulin_t_value<-t.test(tmpDat$binary_insulin[tmpDat$Group == "Metformin"], tmpDat$binary_insulin[tmpDat$Group == "Placebo"])$statistic
@@ -81,7 +81,7 @@ ggplot(squared_composite.df, aes(x= squared_composite))+
 
 
 
-  
+
 
 
 ##P-value calculation##
