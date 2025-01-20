@@ -161,6 +161,7 @@ power_function <- function(x, y, z) {
 
 power_function("gw32", "gw38", "binary_insulin")
 
+
 ## Not very tidy, is this an issue? Also, is there a problem with how I used the squared composite when getting the proportion? Should it be a variable of the function?
 
 ## Power Chart, generated with 500,000 test statistic permutations, starting at a sample size of 30, with increments of 10
@@ -182,3 +183,4 @@ ggplot(power_graph.df, aes(x=sample_size, y=power_results)) +
   theme_classic() + labs(title = "Power of Permuted Test Statistics Method", x = "Sample Size", y= "Power")+
   scale_x_continuous(limits = c(30, NA), expand = c(0, 0))  +
   ylim(0, NA) 
+
