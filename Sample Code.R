@@ -22,11 +22,11 @@ insulin_t_value<-t.test(tmpDat$binary_insulin[tmpDat$Group == "Metformin"], tmpD
 gw32_t_value<-t.test(tmpDat$gw32[tmpDat$Group == "Metformin"], tmpDat$gw32[tmpDat$Group == "Placebo"])$statistic
 gw38_t_value<-t.test(tmpDat$gw38[tmpDat$Group == "Metformin"], tmpDat$gw38[tmpDat$Group == "Placebo"])$statistic
 
-##Composites for Original study##
+##Composites for Original Data##
 ##Squared##
-study_squared_composite<-z_score_squared_insulin+(gw32_t_value^2)+(gw38_t_value^2)
+study_squared_composite<-(insulin_t_value^2)+(gw32_t_value^2)+(gw38_t_value^2)
 ##Not squared##
-study_non_squared_composite<-sqrt(z_score_squared_insulin)+gw32_t_value+gw38_t_value
+study_non_squared_composite<-insulin_t_value+gw32_t_value+gw38_t_value
 
 ##Permutation Code for t-values for continuous data (gw32, gw38, binary_insulin) ##
 
@@ -102,6 +102,16 @@ p_value_squared_composite<-sum(squared_composite>study_squared_composite)/
 p_value_non_squared_composite<-sum(non_squared_composite<study_non_squared_composite)/
   length(non_squared_composite)
 
+##P-values for Poster ##
+#Need to calculate P-value for discretised gw32, gw38, as these are not individually reported in EMERGE#
+EMERGE_gw32_p_value<-prop.test(x = c(sum(tmpDat$gw32greater5.1[tmpDat$Group == "Metformin"] == "Yes", na.rm = T),
+                               sum(tmpDat$gw32greater5.1[tmpDat$Group== "Placebo"]== "Yes", na.rm = T)),
+                               n = c(sum(tmpDat$Group == "Metformin"), sum(tmpDat$Group == "Placebo")))
+
+EMERGE_gw38_p_value<-prop.test(x = c(sum(tmpDat$gw38greater5.1[tmpDat$Group == "Metformin"] == "Yes", na.rm = T),
+                                     sum(tmpDat$gw38greater5.1[tmpDat$Group== "Placebo"]== "Yes", na.rm = T)),
+                               n = c(sum(tmpDat$Group == "Metformin"), sum(tmpDat$Group == "Placebo")))
+
 
 #######################PPPPPPPPPPPPPPPPPPPPOOOOOOOOOOOOOOOOOOOOOOOOWWWWWWWWWWWWWWWWWWEEEEEEEEEEEEEEEEERRRRRRRRRRRRR###################
 
@@ -169,7 +179,7 @@ power_function("gw32", "gw38", "binary_insulin")
 ## Power Chart, generated with 500,000 test statistic permutations, starting at a sample size of 30, with increments of 10
 ## and ending at 80, with 500,000 resamples ##
 ##Composite test statistic used was 95th quantile which is stored as APPLE (7.881899)##
-APPLE
+APPLE<-7.881899
 power_n_30<-0.219598
 power_n_40<-0.264418
 power_n_50<-0.314862
