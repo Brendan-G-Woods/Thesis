@@ -1,5 +1,5 @@
 ---
-title: MSc Health Data Science Project Title
+title: Meta-analysis of composite outcomes in clinical trials 
 author:
   - name: Athira Mohan
   - name: Brendan Woods
@@ -17,7 +17,7 @@ primary_colour:	"#a80050"	# Secondary colour use for poster design.
 secondary_colour:	"#84003d"	# Main colour used for poster design.
 accent_colour:	"#e6007e"	# A third colour option.
 author_textcol: "white"
-title_textsize: "90pt"
+title_textsize: "80pt"
 author_textsize: "60pt"
 body_textsize: "25pt"
 output: 
@@ -58,12 +58,19 @@ library(tidyverse)
 library(plotly)
 library(kableExtra)
 library(posterdown)
+library(ggplot2)
 load("\\Users\\brend\\Downloads\\data")
 tmpDat$binary_insulin<-0
 tmpDat$binary_insulin[tmpDat$InsulinYN == "Yes"]<-1
 
 
 thesis.df<-tmpDat
+
+insulin_t_value<-t.test(tmpDat$binary_insulin[tmpDat$Group == "Metformin"], tmpDat$binary_insulin[tmpDat$Group == "Placebo"])$statistic
+gw32_t_value<-t.test(tmpDat$gw32[tmpDat$Group == "Metformin"], tmpDat$gw32[tmpDat$Group == "Placebo"])$statistic
+gw38_t_value<-t.test(tmpDat$gw38[tmpDat$Group == "Metformin"], tmpDat$gw38[tmpDat$Group == "Placebo"])$statistic
+study_squared_composite<-(insulin_t_value^2)+(gw32_t_value^2)+(gw38_t_value^2)
+
 ```
 
 # Background and Problem
@@ -96,7 +103,7 @@ You can even use the bibliography the same way: Our data were taken from a clust
 
 #### 
 
-# Early Results / Descriptive Statistics of Datasets
+# Descriptive Statistics of Datasets
 
 Usually you want to have a nice table displaying some important results that you have calculated. In `posterdown` this is as easy as using the `kable` table formatting you are probably use to as per typical R Markdown formatting.
 
@@ -114,66 +121,89 @@ ggplot(mpg, aes(displ, hwy, colour = class)) +
   geom_point()
 ```
 
-```{r morefigs, out.width='80%', echo=FALSE, fig.cap='Amazing, right?!', fig.height=4}
+# Methodology
+The meta-analysis of the EMERGE outcomes used permutation tests, which generate a null distribution by randomly shuffling the treatment group assignments of participants and their outcome variables. This breaks any true relationship between treatment and outcomes. Statistical significance is assessed by comparing the actual test statistic to the distribution of test statistics from these shuffled datasets. The P-value is calculated as the proportion of the null distribution that is more extreme than the observed test statistic.
+
+The power of the permutation test is estimated using sampling with replacement. Participants are randomly resampled from the original data, allowing duplicates, while maintaining equal numbers from both treatment groups. The test is repeated multiple times, and power is determined by the proportion of resampled subsets yielding test statistics more extreme than the significance threshold.
+
+
+# Early Results 
+```{r morefigs, out.width='90%', echo=FALSE, fig.cap='Permuted Null Distribution of Composite', fig.height=6}
 continuous_permutation_function<-function(x){
-  permutation_t_value<-numeric(100000)
+  permutation_t_value<-numeric(10000)
   i <-1
   repeat{
     thesis.df$Group<-sample(thesis.df$Group, 535, replace = F)
     permutation_result<-t.test(x[thesis.df$Group == "Metformin"], x[thesis.df$Group == "Placebo"])
     permutation_t_value[i]<-permutation_result$statistic
     i<- i +1
-    if(i > 100000) break}
+    if(i > 10000) break}
   return(permutation_t_value)
 }
-head(thesis.df)
+squared_composite<-((continuous_permutation_function(thesis.df$binary_insulin))^2) +
+  ((continuous_permutation_function(thesis.df$gw32))^2) +
+  ((continuous_permutation_function(thesis.df$gw38))^2)
+percentile_95<-quantile(squared_composite, 0.95)
+
+squared_composite.df<-data.frame(squared_composite)
+ggplot(squared_composite.df, aes(x= squared_composite))+
+  geom_histogram(bins = 200, fill = "darkslategrey", color = "darkslategrey")+
+  scale_x_continuous(limits = c(0, 30)) +
+  labs(x = "Squared Composite", y = "Frequency", title = "Permuted Test Statistics") +
+  geom_vline(xintercept = percentile_95, color = "darkred", linetype = "dashed", size = 1)+
+  annotate("text", x = percentile_95, y = 250, label = "95th Percentile", color = "darkred", angle = 90, vjust = -0.5, size = 7)+
+  theme_minimal()+
+  theme(axis.title = element_text( size = 24),
+        axis.text = element_text(size = 18),
+        plot.title = element_text(size = 28))+
+  geom_vline( xintercept = study_squared_composite, color = "gold3", size = 1 )+
+  annotate("text", x = study_squared_composite, y = 250, label = "EMERGE Composite", color = "gold3", angle = 90, vjust = -0.5, size = 7)
+
 
 ```
 
-You can even make your plots interactive for the HTML version of the poster. You can use the HTML poster for the presentation session, and the PDF poster will be printed - so be sure the static version looks okay.
-
-```{r interactiveplot, out.width='80%', echo=FALSE, fig.cap='Amazing, right?!', fig.height=4}
-
-gapminder <- read_csv("https://raw.githubusercontent.com/datavizpyr/data/master/gapminder-FiveYearData.csv")
-df2 <- gapminder %>%
-  filter(year %in% c(1952,2007)) %>%
-  filter(continent=="Asia") 
-
-df2 <- df2 %>%
-  mutate(paired = rep(1:(n()/2),each=2),
-         year=factor(year))
-
-p <- df2 %>% 
-  ggplot(aes(x= lifeExp, y= country)) +
-  geom_line(aes(group = paired)) +
-  geom_point(aes(color=year), size=4) +
-  theme_bw() +
-  theme(legend.position="top")
 
 
-ggplotly(p)
+```{r morefigs2, out.width='90%', echo=FALSE, fig.cap='Power of Permutation Test', fig.height=5}
+APPLE<-7.881899
+power_n_30<-0.219598
+power_n_40<-0.264418
+power_n_50<-0.314862
+power_n_60<-0.367066
+power_n_70<-0.418002
+power_n_80<-0.468156
+power_results<-c(power_n_30, power_n_40, power_n_50, power_n_60, power_n_70, power_n_80)
+sample_size<-c(30, 40, 50, 60, 70, 80)
+
+power_graph.df<-data.frame(sample_size, power_results)
+ggplot(power_graph.df, aes(x=sample_size, y=power_results)) +
+  geom_line( color="mediumseagreen", size=1.5, alpha=0.9, linetype=1) +
+  theme_bw() + labs(title = "Power vs. Sample Size", x = "Sample Size", y= "Power")+
+  scale_x_continuous(limits = c(30, NA), expand = c(0, 0))  +
+  ylim(0, NA)+
+  theme(axis.title = element_text(size = 24),
+         axis.text = element_text(size = 18),
+        plot.title = element_text(size = 28))
+
 
 ```
 
-#### 
+
 
 # Next Project Steps
 
-We plan to conduct further analysis using:
+The next steps in our project is to compare the permutation method with other
+approaches to improving the analysis of composite outputs, in particular to the
+methods described by Mc Menamin *et al,* [^5].
 
--   Variable discombobulation [^3]
--   Expand our minds with explosive machine learning [^4].
 
-[^3]: Massey et al. 2005 doi: 15.36.413
 
-[^4]: Smith et al. 1991 doi: 12.36.486
-
-We will use the `plasticanalysis` package for this.
+[^5]: Mc Menamin *et al,* 2018 doi:https://doi.org/10.1186/s13023-018-0819-1
 
 
 # GitHub
 
-The code and datasets for this project can be viewed at our GitHub repository here: <https://github.com/>
+The code and datasets for this project can be viewed at our GitHub repository here: <https://github.com/Brendan-G-Woods/Thesis>
 
 
 
