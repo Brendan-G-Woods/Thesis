@@ -128,7 +128,7 @@ The power of the permutation test is estimated using sampling with replacement. 
 
 
 # Early Results 
-```{r morefigs, out.width='90%', echo=FALSE, fig.cap='Permuted Null Distribution of Composite', fig.height=6}
+```{r morefigs, out.width='90%', echo=FALSE, fig.cap='Permuted Null Distribution of Composite. Test statistic 28.89, P-value of P<0.001', fig.height=6}
 continuous_permutation_function<-function(x){
   permutation_t_value<-numeric(10000)
   i <-1
@@ -149,9 +149,9 @@ squared_composite.df<-data.frame(squared_composite)
 ggplot(squared_composite.df, aes(x= squared_composite))+
   geom_histogram(bins = 200, fill = "darkslategrey", color = "darkslategrey")+
   scale_x_continuous(limits = c(0, 30)) +
-  labs(x = "Squared Composite", y = "Frequency", title = "Permuted Test Statistics") +
-  geom_vline(xintercept = percentile_95, color = "darkred", linetype = "dashed", size = 1)+
-  annotate("text", x = percentile_95, y = 250, label = "95th Percentile", color = "darkred", angle = 90, vjust = -0.5, size = 7)+
+  labs(x = "Squared Composite", y = "Frequency", title = expression(bold("Permuted Null Distribution"))) +
+  geom_vline(xintercept = percentile_95, color = "maroon", linetype = "dashed", size = 1)+
+  annotate("text", x = percentile_95, y = 250, label = "95th Percentile", color = "maroon", angle = 90, vjust = -0.5, size = 7)+
   theme_minimal()+
   theme(axis.title = element_text( size = 24),
         axis.text = element_text(size = 18),
@@ -164,26 +164,91 @@ ggplot(squared_composite.df, aes(x= squared_composite))+
 
 
 
-```{r morefigs2, out.width='90%', echo=FALSE, fig.cap='Power of Permutation Test', fig.height=5}
-APPLE<-7.881899
+```{r morefigs2, out.width='95%', echo=FALSE, fig.cap='Power of Permutation Test', fig.height=5}
+
 power_n_30<-0.219598
 power_n_40<-0.264418
 power_n_50<-0.314862
 power_n_60<-0.367066
 power_n_70<-0.418002
 power_n_80<-0.468156
-power_results<-c(power_n_30, power_n_40, power_n_50, power_n_60, power_n_70, power_n_80)
-sample_size<-c(30, 40, 50, 60, 70, 80)
+power_n_90<-0.51759
+power_n_100<-0.56405
+power_n_110<-0.607478
+power_n_120<-0.648076
+power_n_130<-0.685648
+power_n_140<-0.723104
+power_n_150<-0.754432
+power_n_160<-0.781646
+power_n_170<-0.809294
+power_n_180<-0.834104
+power_n_190<-0.854704
+power_n_200<-0.87419
+power_n_210<-0.890702
+power_n_220<-0.905218
+power_n_230<-0.918456
+power_n_240<-0.92976
+power_n_250<-0.939556
+power_n_260<-0.948088
+power_results<-c(power_n_30, power_n_40, power_n_50, power_n_60, power_n_70, power_n_80, power_n_90,
+                 power_n_100, power_n_110, power_n_120, power_n_130, power_n_140, power_n_150, power_n_160,
+                 power_n_170, power_n_180, power_n_190, power_n_200, power_n_210, power_n_220, power_n_230,
+                 power_n_240, power_n_250, power_n_260)
 
-power_graph.df<-data.frame(sample_size, power_results)
-ggplot(power_graph.df, aes(x=sample_size, y=power_results)) +
-  geom_line( color="mediumseagreen", size=1.5, alpha=0.9, linetype=1) +
-  theme_bw() + labs(title = "Power vs. Sample Size", x = "Sample Size", y= "Power")+
-  scale_x_continuous(limits = c(30, NA), expand = c(0, 0))  +
-  ylim(0, NA)+
-  theme(axis.title = element_text(size = 24),
-         axis.text = element_text(size = 18),
-        plot.title = element_text(size = 28))
+EMERGE_power_n_30<-0.02331
+EMERGE_power_n_40<-0.03202
+EMERGE_power_n_50<-0.05006
+EMERGE_power_n_60<-0.049188
+EMERGE_power_n_70<-0.056814
+EMERGE_power_n_80<-0.06352
+EMERGE_power_n_90<-0.06244
+EMERGE_power_n_100<-0.07752
+EMERGE_power_n_110<-0.07844
+EMERGE_power_n_120<-0.08728
+EMERGE_power_n_130<-0.09256
+EMERGE_power_n_140<-0.09306
+EMERGE_power_n_150<-0.11259
+EMERGE_power_n_160<-0.10677
+EMERGE_power_n_170<-0.11652
+EMERGE_power_n_180<-0.12682
+EMERGE_power_n_190<-0.12433
+EMERGE_power_n_200<-0.13877
+EMERGE_power_n_210<-0.14522
+EMERGE_power_n_220<-0.14281
+EMERGE_power_n_230<-0.1552
+EMERGE_power_n_240<-0.16422
+EMERGE_power_n_250<-0.16039
+EMERGE_power_n_260<-0.17103
+
+EMERGE_power_results<-c(EMERGE_power_n_30, EMERGE_power_n_40, EMERGE_power_n_50, EMERGE_power_n_60,
+                        EMERGE_power_n_70, EMERGE_power_n_80, EMERGE_power_n_90, EMERGE_power_n_100,
+                        EMERGE_power_n_110, EMERGE_power_n_120, EMERGE_power_n_130, EMERGE_power_n_140,
+                        EMERGE_power_n_150, EMERGE_power_n_160, EMERGE_power_n_170, EMERGE_power_n_180,
+                        EMERGE_power_n_190, EMERGE_power_n_200, EMERGE_power_n_210, EMERGE_power_n_220,
+                        EMERGE_power_n_230, EMERGE_power_n_240, EMERGE_power_n_250, EMERGE_power_n_260)
+sample_size<-c(30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210,
+               220, 230, 240, 250, 260)
+
+power_graph.df<-data.frame(sample_size, power_results, EMERGE_power_results)
+
+ggplot(power_graph.df, aes(x = sample_size)) +
+  geom_line(aes(y = power_results, color = "Permutation Test Method"), size = 1.5, alpha = 0.9, linetype = 1) +
+  geom_line(aes(y = EMERGE_power_results, color = "EMERGE Composite   "), size = 1.5, alpha = 0.9, linetype = 1) +
+  labs(title = expression(bold("Power Comparison")), x = "Sample Size", y = "Power") +
+  scale_x_continuous(limits = c(30, NA), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_bw()+
+  theme(
+    axis.title = element_text(size = 24),
+    axis.text = element_text(size = 18),
+    plot.title = element_text(size = 28),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 18),
+    legend.position = "bottom")+
+  scale_color_manual(
+    name = "Legend", 
+    values = c("Permutation Test Method" = "mediumseagreen", "EMERGE Composite   " = "steelblue")
+  )
 
 
 ```

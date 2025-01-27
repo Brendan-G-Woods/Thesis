@@ -140,7 +140,7 @@ power_function("binary_insulin")
 
 ##Power Code for Squared Composite##
 power_function <- function(x, y, z) {
-  power_result <- numeric(1000)  
+  power_result <- numeric(500000)  
   i <- 1
   repeat {
     placebo_group <- tmpDat[tmpDat$Group == "Placebo", ]
@@ -167,14 +167,12 @@ power_function <- function(x, y, z) {
     
     power_result[i] <- (((t_test_result1$statistic)^2)+((t_test_result2$statistic)^2)+((t_test_result3$statistic)^2))
     i<- i +1
-    if(i > 1000) break}
-  return(sum((power_result>quantile(squared_composite, 0.95))/ 1000))
+    if(i > 500000) break}
+  return(sum((power_result>quantile(squared_composite, 0.95))/ 500000))
 }
 
 power_function("gw32", "gw38", "binary_insulin")
 
-
-## Not very tidy, is this an issue? Also, is there a problem with how I used the squared composite when getting the proportion? Should it be a variable of the function?
 
 ## Power Chart, generated with 500,000 test statistic permutations, starting at a sample size of 30, with increments of 10
 ## and ending at 80, with 500,000 resamples ##
@@ -186,13 +184,102 @@ power_n_50<-0.314862
 power_n_60<-0.367066
 power_n_70<-0.418002
 power_n_80<-0.468156
-power_results<-c(power_n_30, power_n_40, power_n_50, power_n_60, power_n_70, power_n_80)
-sample_size<-c(30, 40, 50, 60, 70, 80)
+power_n_90<-0.51759
+power_n_100<-0.56405
+power_n_110<-0.607478
+power_n_120<-0.648076
+power_n_130<-0.685648
+power_n_140<-0.723104
+power_n_150<-0.754432
+power_n_160<-0.781646
+power_n_170<-0.809294
+power_n_180<-0.834104
+power_n_190<-0.854704
+power_n_200<-0.87419
+power_n_210<-0.890702
+power_n_220<-0.905218
+power_n_230<-0.918456
+power_n_240<-0.92976
+power_n_250<-0.939556
+power_n_260<-0.948088
+power_results<-c(power_n_30, power_n_40, power_n_50, power_n_60, power_n_70, power_n_80, power_n_90,
+                 power_n_100, power_n_110, power_n_120, power_n_130, power_n_140, power_n_150, power_n_160,
+                 power_n_170, power_n_180, power_n_190, power_n_200, power_n_210, power_n_220, power_n_230,
+                 power_n_240, power_n_250, power_n_260)
+sample_size<-c(30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210,
+               220, 230, 240, 250, 260)
 
-power_graph.df<-data.frame(sample_size, power_results)
-ggplot(power_graph.df, aes(x=sample_size, y=power_results)) +
-  geom_line( color="mediumseagreen", size=1.5, alpha=0.9, linetype=1) +
-  theme_bw() + labs(title = "Power of Permuted Test Statistics Method", x = "Sample Size", y= "Power")+
-  scale_x_continuous(limits = c(30, NA), expand = c(0, 0))  +
-  ylim(0, NA) 
 
+##Power of EMERGE study method ## 
+
+EMERGE_power_function <- function(x, y) { 
+  power_result <- numeric(100000)  
+  i <- 1
+  repeat {
+    placebo_group <- tmpDat[tmpDat$Group == "Placebo", ]
+    clean_placebo_group<-as.vector(na.omit(placebo_group[[x]]))
+    sampled_placebo <- sample(clean_placebo_group, y/2, replace = T)
+    
+    metformin_group <- tmpDat[tmpDat$Group == "Metformin", ]
+    clean_metformin_group<-as.vector(na.omit(metformin_group[[x]]))
+    sampled_metformin <- sample(clean_metformin_group, y/2, replace = T)
+    
+    
+    power_result[i] <- prop.test(x = c(sum(sampled_metformin == "Yes", na.rm=T),
+                                       sum(sampled_placebo == "Yes", na.rm=T)),
+                                 n = c(y/2, y/2))$p.value 
+    i<- i +1
+    if(i > 100000) break}
+  return(sum((power_result< 0.05))/ 100000)
+}
+EMERGE_power_n_30<-0.02331
+EMERGE_power_n_40<-0.03202
+EMERGE_power_n_50<-0.05006
+EMERGE_power_n_60<-0.049188
+EMERGE_power_n_70<-0.056814
+EMERGE_power_n_80<-0.06352
+EMERGE_power_n_90<-0.06244
+EMERGE_power_n_100<-0.07752
+EMERGE_power_n_110<-0.07844
+EMERGE_power_n_120<-0.08728
+EMERGE_power_n_130<-0.09256
+EMERGE_power_n_140<-0.09306
+EMERGE_power_n_150<-0.11259
+EMERGE_power_n_160<-0.10677
+EMERGE_power_n_170<-0.11652
+EMERGE_power_n_180<-0.12682
+EMERGE_power_n_190<-0.12433
+EMERGE_power_n_200<-0.13877
+EMERGE_power_n_210<-0.14522
+EMERGE_power_n_220<-0.14281
+EMERGE_power_n_230<-0.1552
+EMERGE_power_n_240<-0.16422
+EMERGE_power_n_250<-0.16039
+EMERGE_power_n_260<-0.17103
+
+EMERGE_power_results<-c(EMERGE_power_n_30, EMERGE_power_n_40, EMERGE_power_n_50, EMERGE_power_n_60, EMERGE_power_n_70, EMERGE_power_n_80, EMERGE_power_n_90,
+                        EMERGE_power_n_100, EMERGE_power_n_110, EMERGE_power_n_120, EMERGE_power_n_130, EMERGE_power_n_140, EMERGE_power_n_150, EMERGE_power_n_160,
+                        EMERGE_power_n_170, EMERGE_power_n_180, EMERGE_power_n_190, EMERGE_power_n_200, EMERGE_power_n_210, EMERGE_power_n_220, EMERGE_power_n_230,
+                        EMERGE_power_n_240, EMERGE_power_n_250, EMERGE_power_n_260)
+
+
+power_graph.df<-data.frame(sample_size, power_results, EMERGE_power_results)
+
+ggplot(power_graph.df, aes(x = sample_size)) +
+  geom_line(aes(y = power_results, color = "Permutation Test Method"), size = 1.5, alpha = 0.9, linetype = 1) +
+  geom_line(aes(y = EMERGE_power_results, color = "EMERGE Composite   "), size = 1.5, alpha = 0.9, linetype = 1) +
+  labs(title = expression(bold("Power Comparison")), x = "Sample Size", y = "Power") +
+  scale_x_continuous(limits = c(30, NA), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_bw()+
+  theme(
+    axis.title = element_text(size = 24),
+    axis.text = element_text(size = 18),
+    plot.title = element_text(size = 28),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 18),
+    legend.position = "bottom")+
+  scale_color_manual(
+    name = "Legend", 
+    values = c("Permutation Test Method" = "mediumseagreen", "EMERGE Composite   " = "steelblue")
+  )
