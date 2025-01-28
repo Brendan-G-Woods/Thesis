@@ -74,26 +74,23 @@ study_squared_composite<-(insulin_t_value^2)+(gw32_t_value^2)+(gw38_t_value^2)
 ```
 
 # Background and Problem
+Composites are commonly used in clinical trials as the primary outcome. When misused, they can reduce the power to detect treatment effect. This was seen in EMERGE, a randomised clinical trial investigating the effects of early initiation of Metformin treatment on developing gestational diabetes. The composite was created using three measures of glycemic control; blood glucose levels of 5.1mmol/L or greater at gestation weeks 32 or 38, or initiation of Insulin treatment. 
 
-This template has been produced using the `posterdown` package. It generates a standard conference-style poster layout.
+ ***Insulin~Yes~ OR gw32≥5.1~Yes~ OR gw38≥5.1~Yes~ ***
 
-<!-- You can add references by inserting the following ^[reference details here] -->
+This composite involves dichotomising blood glucose levels, greatly reducing power. Therefore, the objectives of this project are:
 
-A common problem in clinical research is messed up data[^1]. It can lead to bias or nonsensical results. Appropriate statistical analysis can result in superb findings in such cases, with the right assumptions.
+1.	To perform a meta-analysis of the primary outcome using permutations of the composite test statistic, and analyzing the glucose components as continuous variables
 
-[^1]: Evans 2010, doi: 10.6030/1939-067x-3.1.1
+2.	To compare various ways of creating the composite test statistic, and their power
 
-## Objectives of Project
+3.	To compare the permutation method with other approaches to analyzing composite outcomes
 
-1.  Explain the statistical issue or research question in health data science to be investigated.
-2.  Explore a method of analysis.
-3.  Apply any methods to selected datasets.
 
 # Data Sources and Datasets
 
 The syntax in this poster template and the `posterdown` package uses the same workflow approach as the R Markdown you know and love.
 
-You can even use the bibliography the same way: Our data were taken from a cluster-randomised trial, available from the [Irish Social Science Data Archive](https://www.ucd.ie/issda/data/).
 
 
 
@@ -128,7 +125,7 @@ The power of the permutation test is estimated using sampling with replacement. 
 
 
 # Early Results 
-```{r morefigs, out.width='90%', echo=FALSE, fig.cap='Permuted Null Distribution of Composite. Test statistic 28.89, P-value of P<0.001', fig.height=4.5}
+```{r morefigs, out.width='90%', echo=FALSE, fig.cap='Permuted Null Distribution of Composite. Test statistic 28.89, *p*-value of *p*<0.001', fig.height=4.5}
 continuous_permutation_function<-function(x){
   permutation_t_value<-numeric(10000)
   i <-1
