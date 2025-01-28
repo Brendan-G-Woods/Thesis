@@ -74,7 +74,7 @@ study_squared_composite<-(insulin_t_value^2)+(gw32_t_value^2)+(gw38_t_value^2)
 ```
 
 # Background and Problem
-Composites are commonly used in clinical trials as the primary outcome. When misused, they can reduce the power to detect treatment effect. This was seen in EMERGE, a randomised clinical trial investigating the effects of early initiation of Metformin treatment on developing gestational diabetes. The composite was created using three measures of glycemic control; blood glucose levels of 5.1mmol/L or greater at gestation weeks 32 or 38, or initiation of Insulin treatment. 
+Composites are commonly used in clinical trials as the primary outcome. When misused, they can reduce the power to detect treatment effect. This was seen in EMERGE [^1], a randomised clinical trial investigating the effects of early initiation of Metformin treatment on developing gestational diabetes. The composite was created using three measures of glycemic control; blood glucose levels of 5.1mmol/L or greater at gestation weeks 32 or 38, or initiation of Insulin treatment. 
 
  ***Insulin~Yes~ OR gw32≥5.1~Yes~ OR gw38≥5.1~Yes~ ***
 
@@ -86,6 +86,7 @@ This composite involves dichotomising blood glucose levels, greatly reducing pow
 
 3.	To compare the permutation method with other approaches to analyzing composite outcomes
 
+[^1]: Dunne *et al,* 2023 doi:10.1001/jama.2023.19869
 
 # Data Sources and Datasets
 
@@ -144,7 +145,7 @@ percentile_95<-quantile(squared_composite, 0.95)
 
 squared_composite.df<-data.frame(squared_composite)
 ggplot(squared_composite.df, aes(x= squared_composite))+
-  geom_histogram(bins = 200, fill = "salmon", color = "salmon")+
+  geom_histogram(bins = 200, fill = "mediumseagreen", color = "mediumseagreen")+
   scale_x_continuous(limits = c(0, 30)) +
   labs(x = "Squared Composite", y = "Frequency", title = expression(bold("Permuted Null Distribution"))) +
   geom_vline(xintercept = percentile_95, color = "maroon", linetype = "dashed", size = 1)+
@@ -256,12 +257,12 @@ ggplot(power_graph.df, aes(x = sample_size)) +
 
 The next steps in our project are to:
 
-* Compare the permutation test method with the approach Mc Menamin *et al.*, [^5] used to analyze composite outputs.
+* Compare the permutation test method with the approach Mc Menamin *et al.*, [^2] used to analyze composite outputs.
 * Compare different methods of creating the composite test statistic and their influence on power.
 * Derive a theoretical null distribution for the composite test statistic incorporating the correlation between the variables.
 
 
-[^5]: Mc Menamin *et al,* 2018 doi:https://doi.org/10.1186/s13023-018-0819-1
+[^2]: Mc Menamin *et al,* 2018 doi:https://doi.org/10.1186/s13023-018-0819-1
 
 
 # GitHub
