@@ -93,9 +93,9 @@ A common problem in clinical research is messed up data[^1]. It can lead to bias
 
 The syntax in this poster template and the `posterdown` package uses the same workflow approach as the R Markdown you know and love.
 
-You can even use the bibliography the same way: Our data were taken from a cluster-randomised trial [^2], available from the [Irish Social Science Data Archive](https://www.ucd.ie/issda/data/).
+You can even use the bibliography the same way: Our data were taken from a cluster-randomised trial, available from the [Irish Social Science Data Archive](https://www.ucd.ie/issda/data/).
 
-[^2]: Murphy et al. 2005 doi: 10.1186/1468-6708-6-11
+
 
 <!-- This #### below causes the columns to break -->
 
@@ -124,7 +124,7 @@ ggplot(mpg, aes(displ, hwy, colour = class)) +
 # Methodology
 The meta-analysis of the EMERGE outcomes used permutation tests, which generate a null distribution by randomly shuffling the treatment group assignment of participants, while maintaining the outcome variables association with each other. This breaks any true relationship between treatment and outcomes. Statistical significance is assessed by comparing the actual test statistic to the null distribution from these shuffled datasets. The P-value is calculated as the proportion of the null distribution that is more extreme than the observed test statistic. The composite test statistic is obtained by summing the squared T-values comparing glucose at weeks 32 and 38, and Insulin: ***T~32~^2^ + T~38~^2^ + T~I~^2^ ***
 
-The power of the permutation test is estimated using sampling with replacement. Participants are randomly resampled from the original data, allowing duplicates, while maintaining equal numbers from both treatment groups. The test is repeated multiple times, and power is determined by the proportion of resampled subsets yielding test statistics more extreme than the significance threshold.
+The power of the permutation test is estimated using sampling with replacement. Participants are randomly resampled from the original data, allowing duplicates, while maintaining equal numbers from both treatment groups. The test is repeated multiple times, and power is determined by the proportion of resampled subsets yielding test statistics more extreme than the 5% significance threshold.
 
 
 # Early Results 
@@ -260,8 +260,8 @@ ggplot(power_graph.df, aes(x = sample_size)) +
 The next steps in our project are to:
 
 * Compare the permutation test method with the approach Mc Menamin *et al.*, [^5] used to analyze composite outputs.
-* Compare different methods of creating the composite and their influence on power.
-* Derive a theoretical distribution incorporating correlation between the variables.
+* Compare different methods of creating the composite test statistic and their influence on power.
+* Derive a theoretical null distribution for the composite test statistic incorporating the correlation between the variables.
 
 
 [^5]: Mc Menamin *et al,* 2018 doi:https://doi.org/10.1186/s13023-018-0819-1
