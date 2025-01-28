@@ -74,13 +74,13 @@ study_squared_composite<-(insulin_t_value^2)+(gw32_t_value^2)+(gw38_t_value^2)
 ```
 
 # Background and Problem
-Composites are commonly used in clinical trials as the primary outcome. When misused, they can reduce the power to detect treatment effect. This was seen in EMERGE [^1], a randomised clinical trial investigating the effects of early initiation of Metformin treatment on developing gestational diabetes. The composite was created using three measures of glycemic control; blood glucose levels of 5.1mmol/L or greater at gestation weeks 32 or 38, or initiation of Insulin treatment. 
+Composites are commonly used in clinical trials as the primary outcome. When misused, they can reduce the power to detect treatment effect. This was seen in EMERGE, [^1] a randomised clinical trial investigating the effects of early initiation of Metformin treatment on developing gestational diabetes. The composite was created using three measures of glycemic control; blood glucose levels of 5.1mmol/L or greater at gestation weeks 32 or 38, or initiation of Insulin treatment. 
 
  ***Insulin~Yes~ OR gw32≥5.1~Yes~ OR gw38≥5.1~Yes~ ***
 
-This composite involves dichotomising blood glucose levels, greatly reducing power. Therefore, the objectives of this project are:
+This composite involves dichotomising blood glucose levels, greatly reducing power. Therefore, using data from EMERGE, the objectives of this project are:
 
-1.	To perform a meta-analysis of the primary outcome using permutations of the composite test statistic, and analyzing the glucose components as continuous variables
+1.	To perform a meta-analysis of the primary outcome using permutations of the composite test statistic, without dichotomising glucose variables
 
 2.	To compare various ways of creating the composite test statistic, and their power
 
