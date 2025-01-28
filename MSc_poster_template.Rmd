@@ -122,13 +122,13 @@ ggplot(mpg, aes(displ, hwy, colour = class)) +
 ```
 
 # Methodology
-The meta-analysis of the EMERGE outcomes used permutation tests, which generate a null distribution by randomly shuffling the treatment group assignments of participants and their outcome variables. This breaks any true relationship between treatment and outcomes. Statistical significance is assessed by comparing the actual test statistic to the distribution of test statistics from these shuffled datasets. The P-value is calculated as the proportion of the null distribution that is more extreme than the observed test statistic.
+The meta-analysis of the EMERGE outcomes used permutation tests, which generate a null distribution by randomly shuffling the treatment group assignment of participants, while maintaining the outcome variables association with each other. This breaks any true relationship between treatment and outcomes. Statistical significance is assessed by comparing the actual test statistic to the null distribution from these shuffled datasets. The P-value is calculated as the proportion of the null distribution that is more extreme than the observed test statistic. The composite test statistic is obtained by summing the squared T-values comparing glucose at weeks 32 and 38, and Insulin: ***T~32~^2^ + T~38~^2^ + T~I~^2^ ***
 
 The power of the permutation test is estimated using sampling with replacement. Participants are randomly resampled from the original data, allowing duplicates, while maintaining equal numbers from both treatment groups. The test is repeated multiple times, and power is determined by the proportion of resampled subsets yielding test statistics more extreme than the significance threshold.
 
 
 # Early Results 
-```{r morefigs, out.width='90%', echo=FALSE, fig.cap='Permuted Null Distribution of Composite. Test statistic 28.89, P-value of P<0.001', fig.height=6}
+```{r morefigs, out.width='90%', echo=FALSE, fig.cap='Permuted Null Distribution of Composite. Test statistic 28.89, P-value of P<0.001', fig.height=4.5}
 continuous_permutation_function<-function(x){
   permutation_t_value<-numeric(10000)
   i <-1
@@ -147,24 +147,24 @@ percentile_95<-quantile(squared_composite, 0.95)
 
 squared_composite.df<-data.frame(squared_composite)
 ggplot(squared_composite.df, aes(x= squared_composite))+
-  geom_histogram(bins = 200, fill = "darkslategrey", color = "darkslategrey")+
+  geom_histogram(bins = 200, fill = "salmon", color = "salmon")+
   scale_x_continuous(limits = c(0, 30)) +
   labs(x = "Squared Composite", y = "Frequency", title = expression(bold("Permuted Null Distribution"))) +
   geom_vline(xintercept = percentile_95, color = "maroon", linetype = "dashed", size = 1)+
-  annotate("text", x = percentile_95, y = 250, label = "95th Percentile", color = "maroon", angle = 90, vjust = -0.5, size = 7)+
+  annotate("text", x = percentile_95, y = 200, label = "95th Percentile", color = "maroon", angle = 90, vjust = -0.5, size = 7)+
   theme_minimal()+
   theme(axis.title = element_text( size = 24),
         axis.text = element_text(size = 18),
         plot.title = element_text(size = 28))+
   geom_vline( xintercept = study_squared_composite, color = "gold3", size = 1 )+
-  annotate("text", x = study_squared_composite, y = 250, label = "EMERGE Composite", color = "gold3", angle = 90, vjust = -0.5, size = 7)
+  annotate("text", x = study_squared_composite, y = 200, label = "EMERGE Composite", color = "gold3", angle = 90, vjust = -0.5, size = 7)
 
 
 ```
 
 
 
-```{r morefigs2, out.width='95%', echo=FALSE, fig.cap='Power of Permutation Test', fig.height=5}
+```{r morefigs2, out.width='95%', echo=FALSE, fig.cap='Power of Permutation Test', fig.height=4.5}
 
 power_n_30<-0.219598
 power_n_40<-0.264418
@@ -257,10 +257,11 @@ ggplot(power_graph.df, aes(x = sample_size)) +
 
 # Next Project Steps
 
-The next steps in our project is to compare the permutation method with other
-approaches to improving the analysis of composite outputs, in particular to the
-methods described by Mc Menamin *et al,* [^5].
+The next steps in our project are to:
 
+* Compare the permutation test method with the approach Mc Menamin *et al.*, [^5] used to analyze composite outputs.
+* Compare different methods of creating the composite and their influence on power.
+* Derive a theoretical distribution incorporating correlation between the variables.
 
 
 [^5]: Mc Menamin *et al,* 2018 doi:https://doi.org/10.1186/s13023-018-0819-1
@@ -268,7 +269,7 @@ methods described by Mc Menamin *et al,* [^5].
 
 # GitHub
 
-The code and datasets for this project can be viewed at our GitHub repository here: <https://github.com/Brendan-G-Woods/Thesis>
+Our code and datasets can be found here: <https://github.com/Brendan-G-Woods/Thesis>
 
 
 
