@@ -59,7 +59,7 @@ library(plotly)
 library(kableExtra)
 library(posterdown)
 library(ggplot2)
-load("\\Users\\brend\\Downloads\\data")
+tmpDat <- read.csv("/Users/athiramohan/Documents/data.csv")
 tmpDat$binary_insulin<-0
 tmpDat$binary_insulin[tmpDat$InsulinYN == "Yes"]<-1
 
