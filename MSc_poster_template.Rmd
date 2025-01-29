@@ -96,6 +96,8 @@ knitr::kable(EMERGE_background_stats, caption = 'EMERGE *p*-values', align = 'c'
   kable_styling(font_size = 20) %>%
   add_header_above(c("Primary Composite Outcome N/total (%)" = 2, " " = 1))
 ```
+# Analysis of EMERGE DATA SET
+The primary composite outcome at 32 and 38 weeks was not significantly different between the **metformin group (154 of 264) and the placebo group (82 of 262)**. This lack of significance is indicated by a **risk difference of -6.9%** (95% CI, -15.1% to 1.4%) and a**relative risk of 0.89** (95% CI, 0.78 to 1.02).
 
 While the results of EMERGE were insignificant, the composite endpoint involved dichotomising blood glucose levels, greatly reducing power. Therefore, using data from EMERGE, the objectives of this project are:
   
