@@ -74,25 +74,38 @@ study_squared_composite<-(insulin_t_value^2)+(gw32_t_value^2)+(gw38_t_value^2)
 ```
 
 # Background and Problem
-Composites are commonly used in clinical trials as the primary outcome. When misused, they can reduce the power to detect treatment effect. This was seen in EMERGE, [^1] a randomised clinical trial investigating the effects of early initiation of Metformin treatment on developing gestational diabetes. The composite was created using three measures of glycemic control; blood glucose levels of 5.1mmol/L or greater at gestation weeks 32 or 38, or initiation of Insulin treatment. 
+Our project centres on  data from EMERGE, [^1] which was a randomised clinical trial investigating the effects of early initiation of Metformin treatment on developing gestational diabetes. The primary outcome of EMERGE was a composite created using three variables; blood glucose levels of 5.1mmol/L or greater at gestation weeks 32 or 38, or initiation of Insulin treatment. 
 
- ***Insulin~Yes~ OR gw32≥5.1~Yes~ OR gw38≥5.1~Yes~ ***
+***Insulin~Yes~ OR gw32≥5.1~Yes~ OR gw38≥5.1~Yes~ ***
 
-This composite involves dichotomising blood glucose levels, greatly reducing power. Therefore, using data from EMERGE, the objectives of this project are:
+```{r}
 
-1.	To perform a meta-analysis of the primary outcome using permutations of the composite test statistic, without dichotomising glucose variables
+composite_metformin <- round(sum(tmpDat$compositeYN[tmpDat$Group == "Metformin"] == "Yes", na.rm = TRUE) /
+                               sum(!is.na(tmpDat$compositeYN[tmpDat$Group == "Metformin"])) * 100, 2)
+composite_placebo <- round(sum(tmpDat$compositeYN[tmpDat$Group == "Placebo"] == "Yes", na.rm = TRUE) /
+                             sum(!is.na(tmpDat$compositeYN[tmpDat$Group == "Placebo"])) * 100, 2)
+EMERGE_composite_p_value<-round(prop.test(x = c(sum(tmpDat$compositeYN[tmpDat$Group == "Metformin"] == "Yes", na.rm = T),
+                                                sum(tmpDat$compositeYN[tmpDat$Group== "Placebo"]== "Yes", na.rm = T)),
+                                          n = c(sum(!is.na(tmpDat$compositeYN[tmpDat$Group == "Metformin"])), sum(!is.na(tmpDat$compositeYN[tmpDat$Group == "Placebo"])))
+)$p.value, 2)
+EMERGE_background_stats<-c("Metformin" = composite_metformin, "Placebo" = composite_placebo,
+                           "P-value" = EMERGE_composite_p_value)
 
-2.	To compare various ways of creating the composite test statistic, and their power
+EMERGE_background_stats <- data.frame(t(as.matrix(EMERGE_background_stats)))
+knitr::kable(EMERGE_background_stats, caption = 'EMERGE *p*-values', align = 'c', format = "html") %>%
+  kable_styling(font_size = 20) %>%
+  add_header_above(c("Primary Composite Outcome N/total (%)" = 2, " " = 1))
+```
 
-3.	To compare the permutation method with other approaches to analyzing composite outcomes
+While the results of EMERGE were insignificant, the composite endpoint involved dichotomising blood glucose levels, greatly reducing power. Therefore, using data from EMERGE, the objectives of this project are:
+  
+  1.	to investigate the potential of meta-analysis to improve power over standard analysis of composite endpoints when some of the components of the composite are continuous and some are binary
+
+2.	To compare various ways of creating the composite test statistic which is used in the meta-analysis, and their power
+
+3.	To compare the permutation-based meta analysis approach we have proposed here to other alternatives to standard analysis of composite endpoint
 
 [^1]: Dunne *et al,* 2023 doi:10.1001/jama.2023.19869
-
-# Data Sources and Datasets
-
-The syntax in this poster template and the `posterdown` package uses the same workflow approach as the R Markdown you know and love.
-
-
 
 
 <!-- This #### below causes the columns to break -->
@@ -101,20 +114,7 @@ The syntax in this poster template and the `posterdown` package uses the same wo
 
 #### 
 
-# Descriptive Statistics of Datasets
-
-Usually you want to have a nice table displaying some important results that you have calculated. In `posterdown` this is as easy as using the `kable` table formatting you are probably use to as per typical R Markdown formatting.
-
-You can reference tables like so: Table \@ref(tab:mytable). Some basic summaries of the dataset are below:
-
-```{r mytable, out.width='80%'}
-knitr::kable(iris[1:10, 1:4], caption = 'Table caption.',align = 'c',"html") %>%
-  kable_styling(font_size = 20)
-```
-
-Figure \@ref(fig:standard-plot), and Figure \@ref(fig:morefigs) below show the patterns in our dataset. Make sure that all the details in your plots will be legible when printed (legend text, axis text, and any labels)
-
-``````{r standard-plot, out.width='80%', fig.align='center', fig.cap='Great figure!', fig.height=4}
+```{r standard-plot, out.width='80%', fig.align='center', fig.cap='Great figure!', fig.height=4}
 # Load the necessary libraries
 library(ggplot2)
 library(hrbrthemes)
@@ -122,36 +122,33 @@ library(readr)
 library(dplyr)
 library(reshape2)
 
-# Load the dataset
-data <- read.csv("~/Documents/data.csv")
-
 # Create a binary column for Insulin
-data$binary_insulin <- 0
-data$binary_insulin[data$InsulinYN == "Yes"] <- 1
+tmpDat$binary_insulin <- 0
+tmpDat$binary_insulin[tmpDat$InsulinYN == "Yes"] <- 1
 
 # Proportion test for Insulin usage between groups
 StudyInsulinTest <- prop.test(
   x = c(
-    sum(data$InsulinYN[data$Group == "Metformin"] == "Yes", na.rm = TRUE),
-    sum(data$InsulinYN[data$Group == "Placebo"] == "Yes", na.rm = TRUE)
+    sum(tmpDat$InsulinYN[tmpDat$Group == "Metformin"] == "Yes", na.rm = TRUE),
+    sum(tmpDat$InsulinYN[tmpDat$Group == "Placebo"] == "Yes", na.rm = TRUE)
   ),
   n = c(
-    sum(data$Group == "Metformin"),
-    sum(data$Group == "Placebo")
+    sum(tmpDat$Group == "Metformin"),
+    sum(tmpDat$Group == "Placebo")
   )
 )
 
 # Perform t-tests for binary_insulin, gw32, and gw38
-insulin_t <- t.test(data$binary_insulin ~ data$Group)
-gw32_t <- t.test(data$gw32 ~ data$Group)
-gw38_t <- t.test(data$gw38 ~ data$Group)
+insulin_t <- t.test(tmpDat$binary_insulin ~ tmpDat$Group)
+gw32_t <- t.test(tmpDat$gw32 ~ tmpDat$Group)
+gw38_t <- t.test(tmpDat$gw38 ~ tmpDat$Group)
 
 # Calculate composite scores
 y_squared_composite <- (insulin_t$statistic^2) + (gw32_t$statistic^2) + (gw38_t$statistic^2)
 study_non_squared_composite <- insulin_t$statistic + gw32_t$statistic + gw38_t$statistic
 
 # Visualization: Proportion of Insulin Usage by Group
-ggplot(data, aes(x = Group, fill = InsulinYN)) +
+ggplot(tmpDat, aes(x = Group, fill = InsulinYN)) +
   geom_bar(position = "fill") +
   labs(
     title = "Proportion of Insulin Usage by Group",
@@ -162,10 +159,10 @@ ggplot(data, aes(x = Group, fill = InsulinYN)) +
   theme_minimal()
 
 # Visualization: Boxplots for gw32 and gw38 with cutoff line at 5.1 and p-values
-ggplot(data, aes(x = Group, y = gw32, fill = Group)) +
+ggplot(tmpDat, aes(x = Group, y = gw32, fill = Group)) +
   geom_boxplot() +
   geom_hline(yintercept = 5.1, linetype = "dashed", color = "red") +
-  annotate("text", x = 1.5, y = max(data$gw32, na.rm = TRUE), 
+  annotate("text", x = 1.5, y = max(tmpDat$gw32, na.rm = TRUE), 
            label = paste("p-value:", round(gw32_t$p.value, 4)), 
            color = "blue", size = 4) +
   labs(
@@ -176,10 +173,10 @@ ggplot(data, aes(x = Group, y = gw32, fill = Group)) +
   ) +
   theme_minimal()
 
-ggplot(data, aes(x = Group, y = gw38, fill = Group)) +
+ggplot(tmpDat, aes(x = Group, y = gw38, fill = Group)) +
   geom_boxplot() +
   geom_hline(yintercept = 5.1, linetype = "dashed", color = "red") +
-  annotate("text", x = 1.5, y = max(data$gw38, na.rm = TRUE), 
+  annotate("text", x = 1.5, y = max(tmpDat$gw38, na.rm = TRUE), 
            label = paste("p-value:", round(gw38_t$p.value, 4)), 
            color = "blue", size = 4) +
   labs(
@@ -191,7 +188,7 @@ ggplot(data, aes(x = Group, y = gw38, fill = Group)) +
   theme_minimal()
 
 # Calculate and display correlation matrix
-correlation_vars <- data %>%
+correlation_vars <- tmpDat %>%
   select(gw32, gw38, binary_insulin) 
 correlation_matrix <- cor(correlation_vars, use = "complete.obs", method = "pearson")
 
