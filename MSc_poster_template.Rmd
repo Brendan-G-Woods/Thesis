@@ -115,7 +115,7 @@ While the results of EMERGE were insignificant, the composite endpoint involved 
 <!-- You can change where you put these breaks, and the "column_numbers: 4" argument in the YAMLS header to change the layout of the poster, with care! -->
 
 
-```{r standard-plot, out.width='80%', fig.align='center', fig.cap='Great figure!', fig.height=4}
+```{r standard-plot, out.width='80%', fig.align='center', fig.height=4}
 # Load the necessary libraries
 library(ggplot2)
 library(hrbrthemes)
