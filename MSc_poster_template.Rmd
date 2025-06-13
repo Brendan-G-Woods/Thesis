@@ -78,7 +78,7 @@ Our project centres on  data from EMERGE, [^1] which was a randomised clinical t
 
 ***Insulin~Yes~ OR gw32≥5.1~Yes~ OR gw38≥5.1~Yes~ ***
 
-```{r}
+```{r mytable, out.width='80%'}
 
 composite_metformin <- round(sum(tmpDat$compositeYN[tmpDat$Group == "Metformin"] == "Yes", na.rm = TRUE) /
                                sum(!is.na(tmpDat$compositeYN[tmpDat$Group == "Metformin"])) * 100, 2)
@@ -92,7 +92,8 @@ EMERGE_background_stats<-c("Metformin" = composite_metformin, "Placebo" = compos
                            "P-value" = EMERGE_composite_p_value)
 
 EMERGE_background_stats <- data.frame(t(as.matrix(EMERGE_background_stats)))
-knitr::kable(EMERGE_background_stats, caption = 'EMERGE *p*-values', align = 'c', format = "html") %>%
+styled_caption <- "<span style='font-family: Arial; font-size: 18px; font-weight: bold; color: black;'>Summary of Primary Composite in EMERGE</span>"
+knitr::kable(EMERGE_background_stats, caption = styled_caption, align = 'c', format = "html") %>%
   kable_styling(font_size = 20) %>%
   add_header_above(c("Primary Composite Outcome N/total (%)" = 2, " " = 1))
 ```
@@ -113,6 +114,7 @@ While the results of EMERGE were insignificant, the composite endpoint involved 
 <!-- You can change where you put these breaks, and the "column_numbers: 4" argument in the YAMLS header to change the layout of the poster, with care! -->
 
 #### 
+# Descriptive Statistics of Datasets
 
 ```{r standard-plot, out.width='80%', fig.align='center', fig.cap='Great figure!', fig.height=4}
 # Load the necessary libraries
@@ -122,41 +124,12 @@ library(readr)
 library(dplyr)
 library(reshape2)
 
-# Create a binary column for Insulin
-tmpDat$binary_insulin <- 0
-tmpDat$binary_insulin[tmpDat$InsulinYN == "Yes"] <- 1
-
-# Proportion test for Insulin usage between groups
-StudyInsulinTest <- prop.test(
-  x = c(
-    sum(tmpDat$InsulinYN[tmpDat$Group == "Metformin"] == "Yes", na.rm = TRUE),
-    sum(tmpDat$InsulinYN[tmpDat$Group == "Placebo"] == "Yes", na.rm = TRUE)
-  ),
-  n = c(
-    sum(tmpDat$Group == "Metformin"),
-    sum(tmpDat$Group == "Placebo")
-  )
-)
 
 # Perform t-tests for binary_insulin, gw32, and gw38
 insulin_t <- t.test(tmpDat$binary_insulin ~ tmpDat$Group)
 gw32_t <- t.test(tmpDat$gw32 ~ tmpDat$Group)
 gw38_t <- t.test(tmpDat$gw38 ~ tmpDat$Group)
 
-# Calculate composite scores
-y_squared_composite <- (insulin_t$statistic^2) + (gw32_t$statistic^2) + (gw38_t$statistic^2)
-study_non_squared_composite <- insulin_t$statistic + gw32_t$statistic + gw38_t$statistic
-
-# Visualization: Proportion of Insulin Usage by Group
-ggplot(tmpDat, aes(x = Group, fill = InsulinYN)) +
-  geom_bar(position = "fill") +
-  labs(
-    title = "Proportion of Insulin Usage by Group",
-    y = "Proportion",
-    x = "Group"
-  ) +
-  scale_fill_brewer(palette = "Set2") +
-  theme_minimal()
 
 # Visualization: Boxplots for gw32 and gw38 with cutoff line at 5.1 and p-values
 ggplot(tmpDat, aes(x = Group, y = gw32, fill = Group)) +
@@ -168,10 +141,12 @@ ggplot(tmpDat, aes(x = Group, y = gw32, fill = Group)) +
   labs(
     title = "Gestational Week 32 by Group",
     y = "Week 32",
-    x = "Group",
-    caption = "Dashed red line represents the cutoff at 5.1"
+    x = "Group"
   ) +
-  theme_minimal()
+  theme_minimal()+
+  theme(axis.title = element_text( size = 24),
+        axis.text = element_text(size = 18),
+        plot.title = element_text(size = 28))
 
 ggplot(tmpDat, aes(x = Group, y = gw38, fill = Group)) +
   geom_boxplot() +
@@ -182,10 +157,12 @@ ggplot(tmpDat, aes(x = Group, y = gw38, fill = Group)) +
   labs(
     title = "Gestational Week 38 by Group",
     y = "Week 38",
-    x = "Group",
-    caption = "Dashed red line represents the cutoff at 5.1"
+    x = "Group"
   ) +
-  theme_minimal()
+  theme_minimal()+
+  theme(axis.title = element_text( size = 24),
+        axis.text = element_text(size = 18),
+        plot.title = element_text(size = 28))
 
 # Calculate and display correlation matrix
 correlation_vars <- tmpDat %>%
@@ -204,7 +181,10 @@ ggplot(correlation_melted, aes(Var1, Var2, fill = value)) +
     x = "Variables",
     y = "Variables"
   ) +
-  theme_minimal()
+  theme_minimal()+
+  theme(axis.title = element_text( size = 24),
+        axis.text = element_text(size = 18),
+        plot.title = element_text(size = 28))
 
 ```
 
@@ -251,7 +231,7 @@ ggplot(squared_composite.df, aes(x= squared_composite))+
 
 
 
-```{r morefigs2, out.width='95%', echo=FALSE, fig.cap='Power of Permutation Test', fig.height=4.5}
+```{r morefigs2, out.width='95%', echo=FALSE, fig.cap='Power of Permutation Test', fig.height=4}
 
 power_n_30<-0.219598
 power_n_40<-0.264418
