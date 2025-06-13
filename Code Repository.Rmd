@@ -5,3 +5,479 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
+## Contents
+- Pre-processing
+- Creating the Composites using original EMERGE data
+- Permutation Code
+- Theoretical Distributions
+- Latent Variable Analysis McMenamin et al.
+- Power Estimation
+- Type I error rate Estimation
+- Simulating toy data set
+
+
+## Pre-processing
+```{r}
+library(dplyr)
+library(MASS)
+library(tidyr)
+library(mvtnorm)
+library(ggplot2)
+library(kableExtra)
+
+load("\\Users\\brend\\Downloads\\data")
+tmpDat <- tmpDat[!(is.na(tmpDat$InsulinYN) & is.na(tmpDat$gw32) & is.na(tmpDat$gw38)), ] ## removes individuals with no observations for 3 outcomes
+tmpDat$binary_insulin<-0
+tmpDat$binary_insulin[tmpDat$InsulinYN == "Yes"]<-1
+tmpDat$binary_group<-0
+tmpDat$binary_group[tmpDat$Group == "Metformin"]<-1
+tmpDat$binary_insulin<-as.numeric(tmpDat$binary_insulin)
+tmpDat$binary_EMERGE<-0
+tmpDat$binary_EMERGE[tmpDat$compositeYN == "Yes"]<-1
+```
+
+
+## Creating the Composites using original EMERGE data
+```{r}
+insulin_t_value<-t.test(tmpDat$binary_insulin[tmpDat$Group == "Metformin"], tmpDat$binary_insulin[tmpDat$Group == "Placebo"])$statistic
+gw32_t_value<-t.test(tmpDat$gw32[tmpDat$Group == "Metformin"], tmpDat$gw32[tmpDat$Group == "Placebo"])$statistic
+gw38_t_value<-t.test(tmpDat$gw38[tmpDat$Group == "Metformin"], tmpDat$gw38[tmpDat$Group == "Placebo"])$statistic
+
+study_squared_composite<-(insulin_t_value^2)+(gw32_t_value^2)+(gw38_t_value^2)
+study_non_squared_composite<-insulin_t_value+gw32_t_value+gw38_t_value
+
+```
+
+
+## Permutation Code
+Permutation Function
+```{r}
+permutation_function<-function(x, y, z){
+
+  permutation_summed_composite<-numeric(100000)
+  permutation_squared_composite <- numeric(100000)
+  i <-1
+
+  repeat{
+
+    tmpDat$Group<-sample(tmpDat$Group, nrow(tmpDat), replace = F)
+    
+    t1 <- t.test(x[tmpDat$Group == "Metformin"], x[tmpDat$Group == "Placebo"])$statistic
+    t2 <- t.test(y[tmpDat$Group == "Metformin"], y[tmpDat$Group == "Placebo"])$statistic 
+    t3 <- t.test(z[tmpDat$Group == "Metformin"], z[tmpDat$Group == "Placebo"])$statistic
+
+    permutation_summed_composite[i] <- t1 + t2 +t3
+    permutation_squared_composite[i]<-  t1^2 + t2^2 + t3^2
+    
+    i<- i +1
+
+    if(i > 100000) break}
+
+  list(permutation_summed_composite  = permutation_summed_composite,
+    permutation_squared_composite = permutation_squared_composite)
+
+}
+
+```
+
+Creating permuted null distributions using permutation function
+```{r}
+set.seed(24253739)
+permuted_null_distributions <-permutation_function(tmpDat$gw32, tmpDat$gw38, tmpDat$binary_insulin)
+permuted_null_distributions.df <-data.frame(permuted_null_distributions)
+```
+
+## Theoretical Distributions
+Summed test statistics  with equal weighting
+```{r}
+set.seed(24253739)
+multivariate <- thesis.df %>% dplyr::select(gw32, gw38, binary_insulin)
+sigma <- cor(multivariate, use = "complete.obs")
+w <- c(1, 1, 1)
+variance <-w%*%sigma%*%w
+size <- 1000000
+null_normal_distribution <- rnorm(size, mean = 0, sd = sqrt(variance))
+p_value <- sum(null_normal_distribution <= study_non_squared_composite)/size
+print(paste("P-value: ", p_value))
+
+null_normal_distribution.df <- data.frame(null_normal_distribution)
+
+```
+
+
+Plotting theoretical null distribution of summed test statistic composite
+```{r}
+ggplot(data = null_normal_distribution.df, aes(x =null_normal_distribution )) + geom_histogram(bins =250, colour = "skyblue", fill = "skyblue") + labs(title = "Normal Null Distribution", x = "", y = "Frequency") +
+  theme_minimal() +   geom_vline(xintercept = quantile(null_normal_distribution, probs = c(0.025, 0.975)), color = "black", linetype = "dashed", linewidth = 0.75) + 
+  geom_vline( xintercept = study_non_squared_composite, color = "gold", size = 1 ) + 
+  annotate("text", x = study_non_squared_composite, y = 10000, label = "EMERGE Composite", color = "gold", angle = 90, vjust = -0.5)
+```
+
+
+Squared test statistics with eigenvalue weighting
+```{r}
+set.seed(24253739)
+multivariate <- thesis.df %>% dplyr::select(gw32, gw38, binary_insulin)
+multivariate_cm <- cor(multivariate, use = "complete.obs")
+eigen_values <- eigen(multivariate_cm)$values
+size <- 1000000
+simulated_chi_sq_matrix <- matrix(rchisq(size * 3, df = 1), ncol = 3)
+eigen_values_chi_sq<- simulated_chi_sq_matrix %*%eigen_values  
+theoretical_null_squared <-data.frame(eigen_values_chi_sq)
+
+p_value <-sum(theoretical_null_squared >= study_squared_composite)/size
+print(paste("P-value: ", p_value))
+
+theoretical_null_squared <- data.frame(chi_sq = eigen_values_chi_sq)
+write.csv(theoretical_null_squared, "Theoretical Squared null distribution.csv", row.names = FALSE )
+
+
+```
+Plotting theoretical null distribution of squared test statistic composite with eigenvalue weights
+```{r}
+ggplot(data = theoretical_null_squared, aes(x =chi_sq )) + geom_histogram(bins =250, colour = "lightsalmon", fill = "lightsalmon") + labs(title = "", x = "", y = "") +
+  theme_minimal() + 
+  geom_vline(xintercept = quantile(theoretical_null_squared$chi_sq, probs = c(0.95)), color = "red", linetype = "dashed", linewidth = 0.75) +
+  annotate("text", x = 8.2, y = 25000, label = "95th Percentile", color = "red", angle = 90, vjust = -0.5, size = 5) +
+  theme(panel.grid.minor = element_blank())+
+  geom_vline( xintercept = study_squared_composite, color = "steelblue", size = 1 ) + 
+  annotate("text", x = study_squared_composite, y = 25000, label = "Composite", color = "steelblue", angle = 90, vjust = -0.5, size = 5)
+
+```
+
+## Latent Variable Analysis McMenamin et al.
+```{r}
+
+```
+
+
+##Power Estimation
+Power estimation function
+```{r}
+power_function <- function(x, y, z, e, n) {
+  summed_TS_power_result <- numeric(200)  
+  squared_TS_power_result <- numeric(200)  
+  EMERGE_composite_power <- numeric(200)
+  i <- 1
+  repeat {
+    placebo_group <- tmpDat[tmpDat$Group == "Placebo", ]
+    placebo_group <- placebo_group[complete.cases(placebo_group[, c(x, y, z)]), ]
+    sampled_placebo <- placebo_group[sample(nrow(placebo_group), n/2, replace = TRUE), ]
+    
+    metformin_group <- tmpDat[tmpDat$Group == "Metformin", ]
+    metformin_group <- metformin_group[complete.cases(metformin_group[, c(x, y, z)]), ]
+    sampled_metformin <- metformin_group[sample(nrow(metformin_group), n/2, replace = TRUE), ]
+
+    
+    t_test_result1<- t.test(sampled_metformin[x], sampled_placebo[x])
+    t_test_result2<- t.test(sampled_metformin[y], sampled_placebo[y])
+    t_test_result3<- t.test(sampled_metformin[z], sampled_placebo[z])
+    t_test_result4<- t.test(sampled_metformin[e], sampled_placebo[e])
+    
+    
+    summed_TS_power_result[i] <- (t_test_result1$statistic + t_test_result2$statistic + t_test_result3$statistic)
+    squared_TS_power_result[i]<-(((t_test_result1$statistic)^2)+((t_test_result2$statistic)^2)+((t_test_result3$statistic)^2))
+    EMERGE_composite_power[i] <- t_test_result4$p.value
+    i<- i +1
+    if(i > 200) break}
+  return(as.numeric(c(sum(summed_TS_power_result<quantile(permuted_null_distributions.df$permutation_summed_composite, 0.025)| summed_TS_power_result > quantile(permuted_null_distributions.df$permutation_summed_composite, 0.975))/ 200,## permutation test summed
+         sum(squared_TS_power_result>quantile(permuted_null_distributions.df$permutation_squared_composite, 0.95))/ 200, ##permutation test squared
+         sum(squared_TS_power_result > quantile(theoretical_null_squared, 0.95))/ 200, ##asymptotic chi-square
+         sum((EMERGE_composite_power< 0.05))/ 200, ## EMERGE
+         sum(summed_TS_power_result<quantile(null_normal_distribution, 0.025)| summed_TS_power_result > quantile(null_normal_distribution, 0.975))/ 200)))
+}
+```
+
+Applying power estimation function
+```{r}
+sample_vector <- seq(from = 30, to = 540, by = 10)
+unified_power_results <- sapply(sample_vector, function(n_value) {
+  power_function("gw32", "gw38", "binary_insulin", "binary_EMERGE", n_value)
+})
+unified_power_results_df <-unified_power_results
+unified_power_results_df <- as.data.frame(t(unified_power_results)) 
+colnames(unified_power_results_df) <- c("Permuted: Summed TS", "Permuted: Squared TS", "Asymptotic Chi-square: Eigenvalue weights TS", "EMERGE Composite", "Asymptotic Normal: Equal weights TS")
+unified_power_results_df$sample_size <- sample_vector
+```
+
+Plotting power estimation
+```{r}
+power_100_latvar<-0.99
+power_150_latvar <- 0.99
+
+LVF_power_df <- data.frame( power = c( 0.99, 0.99),
+                                   sample_size = c(100, 150),
+                                   label = "Latent Variable")
+power_long <- unified_power_results_df %>%
+  pivot_longer(
+    cols = c("Permuted: Summed TS", "Permuted: Squared TS", "Asymptotic Chi-square: Eigenvalue weights TS", "EMERGE Composite", "Asymptotic Normal: Equal weights TS"),
+    names_to = "composite_type",
+    values_to = "power"
+  )
+write.csv(power_long, "power_long.csv", row.names = FALSE)
+
+ggplot(power_long, aes(x = sample_size, y = power, color = composite_type)) +
+  geom_line(size = 1, alpha = 0.5) +
+  labs(
+    title = expression(bold("")),
+    x = "Sample Size",
+    y = "Power"
+  ) +
+  scale_x_continuous(limits = c(30, NA), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0, 1.1)) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 12),
+    plot.title = element_text(size = 24),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 9, face = "bold"),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  ) +
+  scale_color_manual(
+    values = c(
+      "Permuted: Summed TS" = "mediumseagreen",
+      "Permuted: Squared TS" = "blue",
+      "Asymptotic Chi-square: Eigenvalue weights TS" = "orange2",
+      "EMERGE Composite" = "magenta",
+      "Asymptotic Normal: Equal weights TS" = "firebrick"
+    )
+  ) + 
+  guides(color = guide_legend(nrow = 3)) + 
+  geom_point(data = LVF_power_df, aes(x = sample_size, y = power),
+    shape = 21,
+    fill = "black",
+    color = "black",
+    size = 2,
+    stroke = 1.2,
+    inherit.aes = FALSE,
+    vjust = -1
+  ) + 
+  geom_text(data = LVF_power_df, aes(x = sample_size, y = power, label = label),
+    vjust = -1,   
+    size = 2,
+    fontface = "bold",
+    color = "darkred",
+    inherit.aes = FALSE
+  )
+```
+
+## Type I error rate Estimation
+```{r}
+set.seed(24253739)
+type_I_error_function <- function(x, y, z, e, n) {
+  summed_TS_power_result <- numeric(10000)  
+  squared_TS_power_result <- numeric(10000)  
+  EMERGE_composite_power <- numeric(10000)
+  i <- 1
+  repeat {
+    sampled_data <- tmpDat[sample(nrow(tmpDat), n, replace = TRUE), ]
+    sampled_data$binary_g <- rep(c(0, 1), each = n / 2) ##binary_g refers to treatment group
+    sampled_metformin <- sampled_data[sampled_data$binary_g == 1,]
+    sampled_placebo <- sampled_data[sampled_data$binary_g == 0,]
+
+    
+    t_test_result1<- t.test(sampled_metformin[x], sampled_placebo[x])
+    t_test_result2<- t.test(sampled_metformin[y], sampled_placebo[y])
+    t_test_result3<- t.test(sampled_metformin[z], sampled_placebo[z])
+    t_test_result4<- t.test(sampled_metformin[e], sampled_placebo[e])
+    
+    
+    summed_TS_power_result[i] <- (t_test_result1$statistic + t_test_result2$statistic + t_test_result3$statistic)
+    squared_TS_power_result[i] <- (((t_test_result1$statistic)^2)+((t_test_result2$statistic)^2)+((t_test_result3$statistic)^2))
+    EMERGE_composite_power[i] <- t_test_result4$p.value
+    i<- i +1
+    if(i > 10000) break}
+  return(c(sum(summed_TS_power_result<quantile(permuted_null_distributions.df$permutation_summed_composite, 0.025) | summed_TS_power_result > quantile(permuted_null_distributions.df$permutation_summed_composite, 0.975))/ 10000, ##permuted summed composite
+         sum(squared_TS_power_result>quantile(permuted_null_distributions.df$permutation_squared_composite, 0.95))/ 10000, ##permutetd squared composite
+         sum(squared_TS_power_result > quantile(theoretical_null_squared, 0.95))/ 10000, ##theoretical squared composite
+         sum((EMERGE_composite_power< 0.05))/ 10000, ##EMERGE composite
+         sum(summed_TS_power_result<quantile(null_normal_distribution, 0.025)| summed_TS_power_result > quantile(null_normal_distribution, 0.975))/ 10000))
+}
+```
+
+Applying power estimation code and plotting
+```{r}
+sample_vector <- seq(from = 30, to = 540, by = 10)
+type_1_error_rate <- sapply(sample_vector, function(n_value) {
+  type_I_error_function("gw32", "gw38", "binary_insulin", "binary_EMERGE", n_value)
+})
+type_1_error_rate_df <- as.data.frame(t(type_1_error_rate)) 
+colnames(type_1_error_rate_df) <- c("Permuted: Summed TS", "Permuted: Squared TS", "Asymptotic Chi-square: Eigenvalue weights TS", "EMERGE Composite", "Asymptotic Normal: Equal weights TS")
+type_1_error_rate_df$sample_size <- sample_vector
+
+LVF_type_1_error_rate_100 <- 0.93
+LVF_type_1_error_rate_200 <- 0.96
+LVF_type_1_error_df <- data.frame( error_rate = c( 0.93, 0.96),
+                                   sample_size = c(100, 200),
+                                   label = "Latent Variable")
+
+error_long <- type_1_error_rate_df %>%
+  pivot_longer(
+    cols = c("Permuted: Summed TS", "Permuted: Squared TS", "Asymptotic Chi-square: Eigenvalue weights TS", "EMERGE Composite", "Asymptotic Normal: Equal weights TS"),
+    names_to = "composite_type",
+    values_to = "error_rate"
+  )
+
+
+ggplot(error_long, aes(x = sample_size, y = error_rate, color = composite_type)) +
+  geom_line(size = 1, alpha = 0.5) +
+  labs(
+    title = expression(bold("")),
+    x = "Sample Size",
+    y = "Type 1 error"
+  ) +
+  scale_x_continuous(limits = c(30, NA), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0, 0.1)) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 28),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 11, face = "bold"),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  ) +
+scale_color_manual(
+    values = c(
+      "Permuted: Summed TS" = "mediumseagreen",
+      "Permuted: Squared TS" = "blue",
+      "Asymptotic Chi-square: Eigenvalue weights TS" = "orange2",
+      "EMERGE Composite" = "magenta",
+      "Asymptotic Normal: Equal weights TS" = "firebrick"
+    )
+  ) + 
+  guides(color = guide_legend(nrow = 3)) +
+  geom_point(data = LVF_type_1_error_df, aes(x = sample_size, y = error_rate),
+    shape = 21,
+    fill = "black",
+    color = "black",
+    size = 2,
+    stroke = 1.2,
+    inherit.aes = FALSE,
+    vjust = -1
+  ) + 
+  geom_text(data = LVF_type_1_error_df, aes(x = sample_size, y = error_rate, label = label),
+    vjust = -1,   
+    size = 3.5,
+    fontface = "bold",
+    color = "darkred",
+    inherit.aes = FALSE
+  )
+
+```
+
+## Simulating toy data set
+
+pre-processing of tmpDat and acquiring parameters required for simulating data
+```{r}
+met_InsulinY_data <- filter(tmpDat, binary_insulin == 1, Group == "Metformin") 
+pla_InsulinY_data <- filter(tmpDat, binary_insulin == 1, Group == "Placebo") 
+
+met_InsulinN_data <- filter(tmpDat, binary_insulin == 0, Group == "Metformin")
+pla_InsulinN_data <- filter(tmpDat, binary_insulin == 0, Group == "Placebo")
+
+
+met_correlation_matrix_InsulinY <- cor(x=dplyr::select(met_InsulinY_data, gw32, gw38), use = "pairwise.complete.obs")
+pla_correlation_matrix_InsulinY <- cor(x=dplyr::select(pla_InsulinY_data, gw32, gw38), use = "pairwise.complete.obs")
+
+met_correlation_matrix_InsulinN <- cor(x=dplyr::select(met_InsulinN_data, gw32, gw38), use = "pairwise.complete.obs")
+pla_correlation_matrix_InsulinN <- cor(x=dplyr::select(pla_InsulinN_data, gw32, gw38), use = "pairwise.complete.obs")
+
+avg_Met_gw32_InsulinY<-mean(tmpDat$gw32[tmpDat$Group == "Metformin" & tmpDat$binary_insulin == 1], na.rm=T) ##Average gw32 for metformin group with Insulin
+avg_Met_gw38_InsulinY<-mean(tmpDat$gw38[tmpDat$Group == "Metformin" & tmpDat$binary_insulin == 1], na.rm=T)## Same again for gw38
+
+avg_Met_gw32_InsulinN<-mean(tmpDat$gw32[tmpDat$Group == "Metformin" & tmpDat$binary_insulin == 0], na.rm=T)##Average gw38 for metformin with no Insulin
+avg_Met_gw38_InsulinN<-mean(tmpDat$gw38[tmpDat$Group == "Metformin" & tmpDat$binary_insulin == 0], na.rm=T)
+
+##Now for Placebo
+avg_Plcb_gw32_InsulinY<-mean(tmpDat$gw32[tmpDat$Group == "Placebo" & tmpDat$binary_insulin == 1], na.rm=T) 
+avg_Plcb_gw38_InsulinY<-mean(tmpDat$gw38[tmpDat$Group == "Placebo" & tmpDat$binary_insulin == 1], na.rm=T)
+
+avg_Plcb_gw32_InsulinN<-mean(tmpDat$gw32[tmpDat$Group == "Placebo" & tmpDat$binary_insulin == 0], na.rm=T)
+avg_Plcb_gw38_InsulinN<-mean(tmpDat$gw38[tmpDat$Group == "Placebo" & tmpDat$binary_insulin == 0], na.rm=T)
+```
+
+Generating the toy data set (aka dummy data)
+```{r}
+fake_met_insulinY <- mvrnorm(nrow(met_InsulinY_data), c( avg_Met_gw32_InsulinY, avg_Met_gw38_InsulinY), met_correlation_matrix_InsulinY)
+fake_met_insulinY <- data.frame(fake_met_insulinY)
+fake_met_insulinY$Group <- "Metformin"
+
+fake_pcb_insulinY <- mvrnorm(nrow(pla_InsulinY_data), c( avg_Plcb_gw32_InsulinY, avg_Plcb_gw38_InsulinY), pla_correlation_matrix_InsulinY)
+fake_pcb_insulinY <- data.frame(fake_pcb_insulinY)
+fake_pcb_insulinY$Group <- "Placebo"
+
+fake_met_insulinN <- mvrnorm(nrow(met_InsulinN_data), c( avg_Met_gw32_InsulinN, avg_Met_gw38_InsulinN), met_correlation_matrix_InsulinN)
+fake_met_insulinN <- data.frame(fake_met_insulinN)
+fake_met_insulinN$Group <- "Metformin"
+
+fake_pcb_insulinN <- mvrnorm(nrow(pla_InsulinN_data), c( avg_Plcb_gw32_InsulinN, avg_Plcb_gw38_InsulinN), pla_correlation_matrix_InsulinN)
+fake_pcb_insulinN <- data.frame(fake_pcb_insulinN)
+fake_pcb_insulinN$Group <- "Placebo"
+
+fake_InsulinY_df <- data.frame(rbind(fake_met_insulinY, fake_pcb_insulinY))
+fake_InsulinY_df$InsulinYN <- "Yes"
+fake_InsulinY_df$ID<- c(1:(nrow(met_InsulinY_data) + nrow(pla_InsulinY_data)))
+fake_InsulinY_df <- fake_InsulinY_df[, c("ID", "Group", "InsulinYN", "gw32", "gw38")]
+
+fake_InsulinN_df <- data.frame(rbind(fake_met_insulinN, fake_pcb_insulinN))
+fake_InsulinN_df$InsulinYN <- "No"
+fake_InsulinN_df$ID<- c((nrow(met_InsulinY_data) + nrow(pla_InsulinY_data) + 1): nrow(tmpDat))
+fake_InsulinN_df <- fake_InsulinN_df[, c("ID", "Group", "InsulinYN", "gw32", "gw38")]
+
+dummy_data<- rbind(fake_InsulinY_df, fake_InsulinN_df)
+
+dummy_data$binary_insulin<-0
+dummy_data$binary_insulin[dummy_data$InsulinYN == "Yes"]<-1
+                         
+dummy_data$binary_group<-0
+dummy_data$binary_group[dummy_data$Group == "Metformin"]<-1
+
+write.csv(dummy_data, "Simulated toy dataset.csv", rownames = FALSE)
+```
+
+table of parameters for dummy data
+```{r}
+dummy_data_parameters <- data.frame(group = c("Metformin, InsulinY", "Metformin, InsulinN",
+                                                 "Placebo, InsulinY", "Placebo, InsulinN"),
+                                       n = c(nrow(met_InsulinY_data), nrow(met_InsulinN_data),
+                                                  nrow(pla_InsulinY_data), nrow(pla_InsulinN_data)),
+                                       mean_gw32 = c(avg_Met_gw32_InsulinY, avg_Met_gw32_InsulinN,
+                                                     avg_Plcb_gw32_InsulinY, avg_Plcb_gw32_InsulinN),
+                                       mean_gw38 = c(avg_Met_gw38_InsulinY, avg_Met_gw38_InsulinN,
+                                                     avg_Plcb_gw38_InsulinY, avg_Plcb_gw38_InsulinN),
+                                       correlation = c(met_correlation_matrix_InsulinY[1,2], met_correlation_matrix_InsulinN[1,2],
+                                                       pla_correlation_matrix_InsulinY[1,2], pla_correlation_matrix_InsulinN[1,2]))
+colnames(dummy_data_parameters) <- c("Group", "N", "Mean GW32", "Mean GW38", "Correlation")
+dummy_data_parameters %>%
+  kable(
+    caption    = "Parameters of Simulated Toy Data",
+    booktabs   = TRUE,
+    digits     = c(0, 0, 2, 2, 2),
+    align      = c("l", "r", "r", "r", "r")
+  ) %>%
+  kable_styling(
+    latex_options = c("striped", "hold_position"), 
+    full_width    = FALSE
+  )
+```
+
+Toy data adapted for McMenamins app
+Require baseline gw32 and gw38 values, which we set as 0 for all except two individuals, one of which has 0.1 as the baseline value for gw32 or gw38
+Additionally, the values had to be "inverted" for the mcmenamin app to work properly. This was assessed by matching the risk difference calculated by the app to that reported in the EMERGE paper.
+```{r}
+simulated_data <- dummy_data %>% dplyr::select(patient_id = ID, treat = binary_group, Y1 = gw32, Y2 = gw38, Ybin = binary_insulin)
+simulated_data$Y1_0 <- 0
+simulated_data$Y2_0 <- 0
+simulated_data$Y1_0[1] <- -0.1
+simulated_data$Y2_0[2] <- -0.1
+inverted_data$Ybin <- ifelse(simulated_data$Ybin == 1, 0, 1)
+simulated_data$Y1 <- simulated_data$Y1 * -1
+simulated_data$Y2 <- simulated_data$Y2 * -1
+write.csv(simulated_data, "Simulated Inverted Emerge Data.csv", row.names = FALSE)
+
+```
+
