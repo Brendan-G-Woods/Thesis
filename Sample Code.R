@@ -7,11 +7,14 @@ View(tmpDat)
 library(ggplot2)
 library(hrbrthemes)
 ## Creating binary column for Insulin ##
+tmpDat <- tmpDat[!(is.na(tmpDat$InsulinYN) & is.na(tmpDat$gw32) & is.na(tmpDat$gw38)), ]
 tmpDat$binary_insulin<-0
 tmpDat$binary_insulin[tmpDat$InsulinYN == "Yes"]<-1
-
+tmpDat$binary_group<-0
+tmpDat$binary_group[tmpDat$Group == "Metformin"]<-1
+tmpDat$binary_insulin<-as.numeric(tmpDat$binary_insulin)
 thesis.df<-tmpDat
-
+write.csv(thesis.df, "Thesis_df.csv", row.names = FALSE)
 ## T-values and Z-scores for the original study ##
 StudyInsulinTest<- prop.test(x = c(sum(tmpDat$InsulinYN[tmpDat$Group== "Metformin"] == "Yes", na.rm=T),
                                    sum(tmpDat$InsulinYN[tmpDat$Group== "Placebo"] == "Yes", na.rm=T)),
@@ -140,25 +143,25 @@ power_function("binary_insulin")
 
 ##Power Code for Squared Composite##
 power_function <- function(x, y, z) {
-  power_result <- numeric(500000)  
+  power_result <- numeric(5000)  
   i <- 1
   repeat {
     placebo_group <- tmpDat[tmpDat$Group == "Placebo", ]
     clean_placebo_group1<-as.vector(na.omit(placebo_group[[x]]))
     clean_placebo_group2<-as.vector(na.omit(placebo_group[[y]]))
     clean_placebo_group3<-as.vector(na.omit(placebo_group[[z]]))
-    sampled_placebo1 <- sample(clean_placebo_group1, 15, replace = T)
-    sampled_placebo2 <- sample(clean_placebo_group2, 15, replace = T)
-    sampled_placebo3 <- sample(clean_placebo_group3, 15, replace = T)
+    sampled_placebo1 <- sample(clean_placebo_group1, 260, replace = T)
+    sampled_placebo2 <- sample(clean_placebo_group2, 260, replace = T)
+    sampled_placebo3 <- sample(clean_placebo_group3, 260, replace = T)
     
     metformin_group <- tmpDat[tmpDat$Group == "Metformin", ]
     clean_metformin_group1<-as.vector(na.omit(metformin_group[[x]]))
     clean_metformin_group2<-as.vector(na.omit(metformin_group[[y]]))
     clean_metformin_group3<-as.vector(na.omit(metformin_group[[z]]))
     
-    sampled_metformin1 <- sample(clean_metformin_group1, 15, replace = T)
-    sampled_metformin2 <- sample(clean_metformin_group2, 15, replace = T)
-    sampled_metformin3 <- sample(clean_metformin_group3, 15, replace = T)
+    sampled_metformin1 <- sample(clean_metformin_group1, 260, replace = T)
+    sampled_metformin2 <- sample(clean_metformin_group2, 260, replace = T)
+    sampled_metformin3 <- sample(clean_metformin_group3, 260, replace = T)
     
     t_test_result1<- t.test(sampled_metformin1, sampled_placebo1)
     t_test_result2<- t.test(sampled_metformin2, sampled_placebo2)
@@ -167,8 +170,8 @@ power_function <- function(x, y, z) {
     
     power_result[i] <- (((t_test_result1$statistic)^2)+((t_test_result2$statistic)^2)+((t_test_result3$statistic)^2))
     i<- i +1
-    if(i > 500000) break}
-  return(sum((power_result>quantile(squared_composite, 0.95))/ 500000))
+    if(i > 5000) break}
+  return(sum((power_result>quantile(squared_composite, 0.95))/ 5000))
 }
 
 power_function("gw32", "gw38", "binary_insulin")
@@ -177,6 +180,7 @@ power_function("gw32", "gw38", "binary_insulin")
 ## Power Chart, generated with 500,000 test statistic permutations, starting at a sample size of 30, with increments of 10
 ## and ending at 80, with 500,000 resamples ##
 ##Composite test statistic used was 95th quantile which is stored as APPLE (7.881899)##
+##The test statistic used was the sum of the squared test statistics##
 APPLE<-7.881899
 power_n_30<-0.219598
 power_n_40<-0.264418
