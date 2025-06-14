@@ -44,7 +44,7 @@ gw32_t_value<-t.test(tmpDat$gw32[tmpDat$Group == "Metformin"], tmpDat$gw32[tmpDa
 gw38_t_value<-t.test(tmpDat$gw38[tmpDat$Group == "Metformin"], tmpDat$gw38[tmpDat$Group == "Placebo"])$statistic
 
 study_squared_composite<-(insulin_t_value^2)+(gw32_t_value^2)+(gw38_t_value^2)
-study_non_squared_composite<-insulin_t_value+gw32_t_value+gw38_t_value
+study_summed_composite<-insulin_t_value+gw32_t_value+gw38_t_value
 
 ```
 
@@ -85,22 +85,57 @@ Creating permuted null distributions using permutation function
 set.seed(24253739)
 permuted_null_distributions <-permutation_function(tmpDat$gw32, tmpDat$gw38, tmpDat$binary_insulin)
 permuted_null_distributions.df <-data.frame(permuted_null_distributions)
+write.csv(permuted_null_distributions.df, "Permuted Null Distributions.csv", row.names = FALSE)
+
 ```
+
+Plotting permuted null distributions
+Summed test statistics composite
+```{r warning=FALSE}
+ggplot(permuted_null_distributions.df, aes(x= permutation_summed_composite))+
+  geom_histogram(bins = 200, fill = "lightsalmon", color = "lightsalmon")+
+  scale_x_continuous(limits = c(-10, 10)) +
+  labs(x = "Test Statistic", y = "Frequency") +
+  geom_vline(xintercept = quantile(permuted_null_distributions.df$permutation_summed_composite, 0.025), color = "red", linetype = "dashed", size = 0.75)+
+    geom_vline(xintercept = quantile(permuted_null_distributions.df$permutation_summed_composite, 0.975), color = "red", linetype = "dashed", size = 0.75)+
+  annotate("text", x = quantile(permuted_null_distributions.df$permutation_summed_composite, 0.025), y = 1250, label = "2.5th Percentile", color = "red", angle = 90, vjust = -0.5, size = 5)+
+    annotate("text", x = quantile(permuted_null_distributions.df$permutation_summed_composite, 0.975), y = 1250, label = "97.5th Percentile", color = "red", angle = 90, vjust = -0.5, size = 5)+
+  theme_minimal()+ theme(panel.grid.minor = element_blank()) +
+  geom_vline( xintercept = study_summed_composite, color = "steelblue", size = 1 )+
+  annotate("text", x = study_summed_composite, y = 1250, label = "Composite", color = "steelblue", angle = 90, vjust = -0.5, size = 5) + theme(axis.title = element_text(size = 16))
+```
+
+Permuted Squared test statistics composite
+```{r warning=FALSE}
+ggplot(permuted_null_distributions.df, aes(x= permutation_squared_composite))+
+  geom_histogram(bins = 200, fill = "darksalmon", color = "darksalmon")+
+  scale_x_continuous(limits = c(0, 30)) +
+  labs(x = "Test Statistic", y = "Frequency") +
+  geom_vline(xintercept = quantile(permuted_null_distributions.df$permutation_squared_composite, 0.95), color = "red", linetype = "dashed", size = 0.75)+
+  annotate("text", x = quantile(permuted_null_distributions.df$permutation_squared_composite, 0.95), y = 2500, label = "95th Percentile", color = "red", angle = 90, vjust = -0.5)+
+  theme_minimal()+ theme(panel.grid.minor = element_blank(),
+                         axis.title = element_text(size = 16)) +
+  geom_vline(xintercept = study_squared_composite, color = "steelblue", size = 1 ) +
+  annotate("text", x = study_squared_composite, y = 2500, label = "Composite", color = "steelblue", angle = 90, vjust = -0.5)
+```
+
+
 
 ## Theoretical Distributions
 Summed test statistics  with equal weighting
 ```{r}
 set.seed(24253739)
-multivariate <- thesis.df %>% dplyr::select(gw32, gw38, binary_insulin)
+multivariate <- tmpDat %>% dplyr::select(gw32, gw38, binary_insulin)
 sigma <- cor(multivariate, use = "complete.obs")
 w <- c(1, 1, 1)
 variance <-w%*%sigma%*%w
 size <- 1000000
 null_normal_distribution <- rnorm(size, mean = 0, sd = sqrt(variance))
-p_value <- sum(null_normal_distribution <= study_non_squared_composite)/size
+p_value <- sum(null_normal_distribution <= study_summed_composite)/size
 print(paste("P-value: ", p_value))
 
 null_normal_distribution.df <- data.frame(null_normal_distribution)
+write.csv(null_normal_distribution.df, "Theoretical Summed null distribution.csv", row.names = FALSE )
 
 ```
 
@@ -109,15 +144,15 @@ Plotting theoretical null distribution of summed test statistic composite
 ```{r}
 ggplot(data = null_normal_distribution.df, aes(x =null_normal_distribution )) + geom_histogram(bins =250, colour = "skyblue", fill = "skyblue") + labs(title = "Normal Null Distribution", x = "", y = "Frequency") +
   theme_minimal() +   geom_vline(xintercept = quantile(null_normal_distribution, probs = c(0.025, 0.975)), color = "black", linetype = "dashed", linewidth = 0.75) + 
-  geom_vline( xintercept = study_non_squared_composite, color = "gold", size = 1 ) + 
-  annotate("text", x = study_non_squared_composite, y = 10000, label = "EMERGE Composite", color = "gold", angle = 90, vjust = -0.5)
+  geom_vline( xintercept = study_summed_composite, color = "gold", size = 1 ) + 
+  annotate("text", x = study_summed_composite, y = 10000, label = "EMERGE Composite", color = "gold", angle = 90, vjust = -0.5)
 ```
 
 
 Squared test statistics with eigenvalue weighting
 ```{r}
 set.seed(24253739)
-multivariate <- thesis.df %>% dplyr::select(gw32, gw38, binary_insulin)
+multivariate <- tmpDat %>% dplyr::select(gw32, gw38, binary_insulin)
 multivariate_cm <- cor(multivariate, use = "complete.obs")
 eigen_values <- eigen(multivariate_cm)$values
 size <- 1000000
@@ -151,13 +186,13 @@ ggplot(data = theoretical_null_squared, aes(x =chi_sq )) + geom_histogram(bins =
 ```
 
 
-##Power Estimation
+## Power Estimation
 Power estimation function
 ```{r}
 power_function <- function(x, y, z, e, n) {
-  summed_TS_power_result <- numeric(200)  
-  squared_TS_power_result <- numeric(200)  
-  EMERGE_composite_power <- numeric(200)
+  summed_TS_power_result <- numeric(1000)  
+  squared_TS_power_result <- numeric(1000)  
+  EMERGE_composite_power <- numeric(1000)
   i <- 1
   repeat {
     placebo_group <- tmpDat[tmpDat$Group == "Placebo", ]
@@ -179,12 +214,12 @@ power_function <- function(x, y, z, e, n) {
     squared_TS_power_result[i]<-(((t_test_result1$statistic)^2)+((t_test_result2$statistic)^2)+((t_test_result3$statistic)^2))
     EMERGE_composite_power[i] <- t_test_result4$p.value
     i<- i +1
-    if(i > 200) break}
-  return(as.numeric(c(sum(summed_TS_power_result<quantile(permuted_null_distributions.df$permutation_summed_composite, 0.025)| summed_TS_power_result > quantile(permuted_null_distributions.df$permutation_summed_composite, 0.975))/ 200,## permutation test summed
-         sum(squared_TS_power_result>quantile(permuted_null_distributions.df$permutation_squared_composite, 0.95))/ 200, ##permutation test squared
-         sum(squared_TS_power_result > quantile(theoretical_null_squared, 0.95))/ 200, ##asymptotic chi-square
-         sum((EMERGE_composite_power< 0.05))/ 200, ## EMERGE
-         sum(summed_TS_power_result<quantile(null_normal_distribution, 0.025)| summed_TS_power_result > quantile(null_normal_distribution, 0.975))/ 200)))
+    if(i > 1000) break}
+  return(as.numeric(c(sum(summed_TS_power_result<quantile(permuted_null_distributions.df$permutation_summed_composite, 0.025)| summed_TS_power_result > quantile(permuted_null_distributions.df$permutation_summed_composite, 0.975))/ 1000,## permutation test summed
+         sum(squared_TS_power_result>quantile(permuted_null_distributions.df$permutation_squared_composite, 0.95))/ 1000, ##permutation test squared
+         sum(squared_TS_power_result > quantile(theoretical_null_squared$chi_sq, 0.95))/ 1000, ##asymptotic chi-square
+         sum((EMERGE_composite_power< 0.05))/ 1000, ## EMERGE
+         sum(summed_TS_power_result<quantile(null_normal_distribution, 0.025)| summed_TS_power_result > quantile(null_normal_distribution, 0.975))/ 1000)))
 }
 ```
 
@@ -198,6 +233,7 @@ unified_power_results_df <-unified_power_results
 unified_power_results_df <- as.data.frame(t(unified_power_results)) 
 colnames(unified_power_results_df) <- c("Permuted: Summed TS", "Permuted: Squared TS", "Asymptotic Chi-square: Eigenvalue weights TS", "EMERGE Composite", "Asymptotic Normal: Equal weights TS")
 unified_power_results_df$sample_size <- sample_vector
+
 ```
 
 Plotting power estimation
@@ -291,7 +327,7 @@ type_I_error_function <- function(x, y, z, e, n) {
     if(i > 10000) break}
   return(c(sum(summed_TS_power_result<quantile(permuted_null_distributions.df$permutation_summed_composite, 0.025) | summed_TS_power_result > quantile(permuted_null_distributions.df$permutation_summed_composite, 0.975))/ 10000, ##permuted summed composite
          sum(squared_TS_power_result>quantile(permuted_null_distributions.df$permutation_squared_composite, 0.95))/ 10000, ##permutetd squared composite
-         sum(squared_TS_power_result > quantile(theoretical_null_squared, 0.95))/ 10000, ##theoretical squared composite
+         sum(squared_TS_power_result > quantile(theoretical_null_squared$chi_sq, 0.95))/ 10000, ##theoretical squared composite
          sum((EMERGE_composite_power< 0.05))/ 10000, ##EMERGE composite
          sum(summed_TS_power_result<quantile(null_normal_distribution, 0.025)| summed_TS_power_result > quantile(null_normal_distribution, 0.975))/ 10000))
 }
@@ -319,7 +355,7 @@ error_long <- type_1_error_rate_df %>%
     names_to = "composite_type",
     values_to = "error_rate"
   )
-
+write.csv(error_long, "Type I error estimation.csv", row.names = FALSE)
 
 ggplot(error_long, aes(x = sample_size, y = error_rate, color = composite_type)) +
   geom_line(size = 1, alpha = 0.5) +
@@ -373,6 +409,7 @@ scale_color_manual(
 
 pre-processing of tmpDat and acquiring parameters required for simulating data
 ```{r}
+tmpDat <- tmpDat[(!is.na(tmpDat$InsulinYN) & !is.na(tmpDat$gw32) & !is.na(tmpDat$gw38)), ]
 met_InsulinY_data <- filter(tmpDat, binary_insulin == 1, Group == "Metformin") 
 pla_InsulinY_data <- filter(tmpDat, binary_insulin == 1, Group == "Placebo") 
 
@@ -436,7 +473,7 @@ dummy_data$binary_insulin[dummy_data$InsulinYN == "Yes"]<-1
 dummy_data$binary_group<-0
 dummy_data$binary_group[dummy_data$Group == "Metformin"]<-1
 
-write.csv(dummy_data, "Simulated toy dataset.csv", rownames = FALSE)
+write.csv(dummy_data, "Simulated toy dataset.csv", row.names = FALSE)
 ```
 
 table of parameters for dummy data
@@ -474,7 +511,7 @@ simulated_data$Y1_0 <- 0
 simulated_data$Y2_0 <- 0
 simulated_data$Y1_0[1] <- -0.1
 simulated_data$Y2_0[2] <- -0.1
-inverted_data$Ybin <- ifelse(simulated_data$Ybin == 1, 0, 1)
+simulated_data$Ybin <- ifelse(simulated_data$Ybin == 1, 0, 1)
 simulated_data$Y1 <- simulated_data$Y1 * -1
 simulated_data$Y2 <- simulated_data$Y2 * -1
 write.csv(simulated_data, "Simulated Inverted Emerge Data.csv", row.names = FALSE)
