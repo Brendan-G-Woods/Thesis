@@ -343,6 +343,7 @@ type_1_error_rate_df <- as.data.frame(t(type_1_error_rate))
 colnames(type_1_error_rate_df) <- c("Permuted: Summed TS", "Permuted: Squared TS", "Asymptotic Chi-square: Eigenvalue weights TS", "EMERGE Composite", "Asymptotic Normal: Equal weights TS")
 type_1_error_rate_df$sample_size <- sample_vector
 
+
 LVF_type_1_error_rate_100 <- 0.93
 LVF_type_1_error_rate_200 <- 0.96
 LVF_type_1_error_df <- data.frame( error_rate = c( 0.93, 0.96),
