@@ -5,6 +5,15 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = FALSE,
+  message = FALSE,
+  warning = FALSE)
+
+```
+
+
 ## Contents
 - Pre-processing
 - Creating the Composites using original EMERGE data
@@ -24,6 +33,16 @@ library(tidyr)
 library(mvtnorm)
 library(ggplot2)
 library(kableExtra)
+library(stats)
+library(nlme)
+library(boot)
+library(matrixcalc)
+library(numDeriv)
+library(cubature)
+library(optimx)
+library(brglm)
+library(Matrix)
+library(matrixcalc)
 
 load("\\Users\\brend\\Downloads\\data")
 tmpDat <- tmpDat[!(is.na(tmpDat$InsulinYN) & is.na(tmpDat$gw32) & is.na(tmpDat$gw38)), ] ## removes individuals with no observations for 3 outcomes
@@ -86,7 +105,10 @@ set.seed(24253739)
 permuted_null_distributions <-permutation_function(tmpDat$gw32, tmpDat$gw38, tmpDat$binary_insulin)
 permuted_null_distributions.df <-data.frame(permuted_null_distributions)
 write.csv(permuted_null_distributions.df, "Permuted Null Distributions.csv", row.names = FALSE)
-
+p_value_squared_composite <- sum(permuted_null_distributions.df$permutation_squared_composite >= study_squared_composite)/100000
+p_value_summed_composite <- sum(permuted_null_distributions.df$permutation_summed_composite <= study_summed_composite)/100000
+print(paste("P-value squared composite: ", p_value_squared_composite))
+print(paste("P-value summed composite: ", p_value_summed_composite))
 ```
 
 Plotting permuted null distributions
@@ -180,11 +202,367 @@ ggplot(data = theoretical_null_squared, aes(x =chi_sq )) + geom_histogram(bins =
 
 ```
 
-## Latent Variable Analysis McMenamin et al.
-```{r}
 
+## Latent Variable Analysis McMenamin et al.
+The following code is from McMenamin et al. 2021 which has been modified to remove the code for baseline variables of the continuous outcomes.
+```{r}
+#Likelihood function
+
+f<-function(X,dat)
+{
+  #data
+  #dat<-dat[!is.na(dat[,3]),]#change this to baseline measure when it is added? 
+  
+  #parameters
+  alpha0 <- X[1]
+    alpha1 <- X[2]
+       beta0 <- X[3]
+         beta1 <- X[4]
+           psi0 <- X[5]
+             psi1 <- X[6]
+  
+  #covariance parameters
+  sig1 <- exp(X[7]) 
+    sig2 <- exp(X[8]) 
+     rho12 <- 2*inv.logit(X[9])-1
+       rho13 <- 2*inv.logit(X[10])-1
+          rho23 <- 2*inv.logit(X[11])-1
+  
+  
+  #Known cutoffs
+  tau0 <- -Inf
+   tau1 <- 0
+     tau2 <- +Inf
+  
+  print(X)
+  
+  #model means
+  muz1<-alpha0+alpha1*dat[,2]
+   muz2<-beta0+beta1*dat[,2]
+     muz3<-psi0+psi1*dat[,2]
+  
+  #conditional means
+  muz3cond <- muz3+((rho13-rho12*rho23)*(dat[,3]-muz1)/(sqrt(sig1)*(1-(rho12)^2)))+((rho23-rho13*rho12)*(dat[,4]-muz2)/(sqrt(sig2)*(1-(rho12)^2)))
+  
+  #conditional covariance
+  sigcond <- 1-(((rho13)^2-2*rho12*rho13*rho23+(rho23)^2)/(1-(rho12)^2))
+  
+  #continuous bivariate covariance
+  matbiv11 <- (sig1)^2
+   matbiv12 <- rho12*sig1*sig2
+    matbiv22 <- (sig2)^2
+      Sigbiv   <- matrix(c(matbiv11, matbiv12, matbiv12, matbiv22), nrow=2, ncol=2)#check
+        Sigbiv <- (Sigbiv*t(Sigbiv))^0.5
+  
+  #upperlimits
+  mulim0<-matrix( tau1-muz3cond, ncol=1)
+   mulim1<-matrix( tau2-muz3cond, ncol=1)
+  
+  #binprob
+  pr30<-apply(mulim0,1,function(x){return(pmvnorm(lower=-Inf,upper=x,mean=0,sigma = sigcond))})
+   pr31<-apply(mulim1,1,function(x){return(pmvnorm(lower=-Inf,upper=x,mean=0,sigma = sigcond))})
+     prz12<-dmvnorm(cbind(dat[,3],dat[,4]), c(mean(muz1), mean(muz2)), Sigbiv)
+  
+  #Likelihood
+  
+  #components of likelihood,k=0,1 (binary)
+  l0<-log(pr30)+log(prz12)#k=0
+  l1<-log(pr31-pr30)+log(prz12)#k=1
+  
+  data0 <- cbind(dat[,5],l0)#0
+   data1 <- cbind(dat[,5],l1)#1
+  
+  #0
+  data0[data0[,1]==1,2]<-0
+  
+  #1
+  data1[data1[,1]==0,2]<-0
+  
+  
+  t0 <- sum(data0[,2])
+    t1 <- sum(data1[,2])
+  
+  #-log(likelihood)
+  Tfinal<-sum(t0)+sum(t1)
+  
+  return(-Tfinal)
+}
+
+lowerlim <- c(-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf)
+upperlim <- c(+Inf,+Inf,+Inf,+Inf,+Inf,+Inf,+Inf,+Inf,+Inf,+Inf,+Inf)
+
+
+##Probability of response
+integrand<-function(Zint,meantreat,meanuntreat,mle)
+{
+  
+  sigmahat=matrix(nrow=3,ncol=3)
+    sigmahat[1,1]=(exp(mle[7]))^2
+     sigmahat[2,1]=(2*inv.logit(mle[9])-1)*(exp(mle[7]))*exp(mle[8])
+       sigmahat[3,1]=(2*inv.logit(mle[10])-1)*(exp(mle[7]))
+           sigmahat[1,2]=sigmahat[2,1]
+             sigmahat[2,2]=(exp(mle[8]))^2
+               sigmahat[3,2]=(2*inv.logit(mle[11])-1)*(exp(mle[8]))
+                 sigmahat[1,3]=sigmahat[3,1]
+                   sigmahat[2,3]=sigmahat[3,2]
+                     sigmahat[3,3]=1
+  
+  xtreat<-cbind(-meantreat[,1]+Zint[1], -meantreat[,2]+Zint[2], -meantreat[,3]+Zint[3])
+    xuntreat<-cbind(-meanuntreat[,1]+Zint[1],-meanuntreat[,2]+Zint[2],-meanuntreat[,3]+Zint[3])
+  
+  pdftreat=dmvnorm(xtreat, mean=c(0,0,0),sigma=sigmahat)
+     pdfuntreat=dmvnorm(xuntreat, mean=c(0,0,0),sigma=sigmahat)
+  
+  return(c(mean(pdftreat),mean(pdfuntreat)))
+}
+
+
+probofsuccess<-function(mle,n,dat,eta)
+{
+  n=n
+  
+  meantreat=cbind(cbind(rep(1,n),rep(1,n))%*%c(mle[1:2]),cbind(rep(1,n),rep(1,n))%*%c(mle[3:4]), 
+                  cbind(rep(1,n),rep(1,n))%*%mle[5:6])   
+  meanuntreat=cbind(cbind(rep(1,n),rep(0,n))%*%c(mle[1:2]),cbind(rep(1,n),rep(0,n))%*%c(mle[3:4]), 
+                    cbind(rep(1,n),rep(0,n))%*%mle[5:6])     
+  
+  #lower and upper bounds
+  minmean1=min(c(meantreat[,1],meanuntreat[,1]))
+  minmean2=min(c(meantreat[,2],meanuntreat[,2]))
+  minmean3=min(c(meantreat[,3],meanuntreat[,3]))
+
+  maxmean1=max(c(meantreat[,1],meanuntreat[,1]))
+  maxmean2=max(c(meantreat[,2],meanuntreat[,2]))
+  maxmean3=max(c(meantreat[,3],meanuntreat[,3]))
+  
+  lower=c(qnorm(1e-15,minmean1,exp(mle[7])),qnorm(1e-15,minmean2,exp(mle[8])),qnorm(1e-15,minmean3,1))
+ 
+  upper=c(eta[1],eta[2],0)
+  
+  a=cuhre(f=integrand,nComp=2,lower=lower,upper=upper,flags=list(verbose=0,final=1,pseudo.random=0,mersenne.seed=NULL),
+          meantreat=meantreat,meanuntreat=meanuntreat,mle=mle)
+  #return(c(a$value[1],a$value[2]))
+  #return(c(a$value[1]-a$value[2],a$value[1],a$value[2]))
+  return(c((log(a$integral[1]/(1-a$integral[1]))-log(a$integral[2]/(1-a$integral[2]))),log(a$integral[1]/a$integral[2]),
+           a$integral[1]-a$integral[2],a$integral[1],a$integral[2]))
+  #return(log(a$value[1]/a$value[2]))
+}
+
+#Partial derivatives
+
+partials<-function(mle,n,dat,eta)
+{
+  p=length(mle)
+  fit1<-probofsuccess(mle,n,dat,eta)
+  fitOR<-fit1[1]
+  fitRR<-fit1[2]
+  fitRD<-fit1[3]
+  partials.augbinOR<-as.vector(rep(0,p))
+  partials.augbinRR<-as.vector(rep(0,p))
+  partials.augbinRD<-as.vector(rep(0,p))
+  
+  for(i in 1:p){
+    valueupdate=mle
+    valueupdate[i]=valueupdate[i]+0.000001
+    
+    updateprobOR=probofsuccess(valueupdate,n,dat,eta)[1]
+    updateprobRR=probofsuccess(valueupdate,n,dat,eta)[2]
+    updateprobRD=probofsuccess(valueupdate,n,dat,eta)[3]
+    
+    partials.augbinOR[i]=(updateprobOR-fitOR)/0.000001
+    partials.augbinRR[i]=(updateprobRR-fitRR)/0.000001
+    partials.augbinRD[i]=(updateprobRD-fitRD)/0.000001
+    
+  }
+  
+  return(c(partials.augbinOR,partials.augbinRR,partials.augbinRD,fit1))
+}
+
+
+
+result.latent<-as.list(NULL)
+results<-as.list(NULL)
+
+#Function for treatment effects and CIs for both methods
+
+LatVarfunc<-function(dat,eta){
+  n=dim(dat)[1]
+  
+  #Starting values
+  lm1<-lm(dat[,3]~dat[,2])
+  lm2<-lm(dat[,4]~dat[,2])
+  lm3<-lm(dat[,5]~dat[,2])
+  sig1est<-log(sqrt(var(dat[,3])))
+  sig2est<-log(sqrt(var(dat[,4])))
+  rho12est<-log(((cor(dat[,3],dat[,4])+1)/2)/(1-(cor(dat[,3],dat[,4])+1)/2))
+  rho13est<-log(((cor(dat[,3],dat[,5])+1)/2)/(1-(cor(dat[,3],dat[,5])+1)/2))
+  rho23est<-log(((cor(dat[,4],dat[,5])+1)/2)/(1-(cor(dat[,4],dat[,5])+1)/2))
+  
+  X<-c(lm1$coef[1],lm1$coef[2],lm2$coef[1],lm2$coef[2],lm3$coef[1],lm3$coef[2],sig1est,sig2est,rho12est, rho13est,rho23est)
+  X<-as.vector(X)
+  
+  #Latent variable
+  
+  mlefit=optimx(X,f,dat=dat,lower=lowerlim,upper=upperlim,method="nlminb",control=list(rel.tol=1e-12))
+  mle<-coef(mlefit[1,])
+  hess<-attr(mlefit,"details")["nlminb",]$nhatend
+  print(hess)
+  mlecov=ginv(hess)
+  mlecov<-nearPD(mlecov)$mat
+  se<-sqrt(diag(mlecov))
+  print(se)
+  
+  part<-partials(mle,n,dat,eta)
+  print(part)
+  meanOR<-part[34]
+  
+  partsOR <- part[1:11]
+  varianceOR=t(partsOR)%*%mlecov%*%partsOR
+  varianceOR=varianceOR[1,1]
+  
+  meanRR<-part[35]
+  partsRR<-part[12:22]
+  varianceRR=t(partsRR)%*%mlecov%*%partsRR
+  varianceRR=varianceRR[1,1]
+  
+  meanRD<-part[36]
+  partsRD<-part[23:33]
+  varianceRD=t(partsRD)%*%mlecov%*%partsRD
+  varianceRD=varianceRD[1,1]
+  
+  CIOR<-c(meanOR-1.96*sqrt(varianceOR),meanOR,meanOR+1.96*sqrt(varianceOR))
+  CIRR<-c(meanRR-1.96*sqrt(varianceRR),meanRR,meanRR+1.96*sqrt(varianceRR))
+  CIRD<-c(meanRD-1.96*sqrt(varianceRD),meanRD,meanRD+1.96*sqrt(varianceRD))
+  
+  probresplat<-c(part[37],part[38])
+  result.latent<-c(CIOR,CIRR,CIRD,probresplat)
+  
+  
+  epshat1 <- dat[,3]-(mle[1]+mle[2]*dat[,2])
+  epshat2 <- dat[,4]-(mle[3]+mle[4]*dat[,2])
+  epshat3 <- dat[,5]-(mle[5]+mle[6]*dat[,2])
+  epshat <- as.matrix(cbind(epshat1,epshat2,epshat3))
+  
+  sig1hat <- exp(mle[7]) 
+  sig2hat <- exp(mle[8]) 
+  ##Correlation coefficients (rho12, rho13, rho23) must lie in the interval (-1, 1). However, optimization routines like optimx work best on    unconstrained parameters, ranging from -Inf to +Inf. To enable this, the code uses the logistic (sigmoid) transformation to map an           unconstrained value to the range (0,1), and then linearly transforms it to (−1,1).##
+  rho12hat <- 2*inv.logit(mle[9])-1
+  rho13hat <- 2*inv.logit(mle[10])-1
+  rho23hat <- 2*inv.logit(mle[11])-1
+  
+  SigHat<-matrix(data=c(sig1hat^2,rho12hat*sig1hat*sig2hat,rho13hat*sig1hat,rho12hat*sig1hat*sig2hat,sig2hat^2,
+           rho23hat*sig2hat,rho13hat*sig1hat,rho23hat*sig2hat,1),ncol=3)
+  modres <- diag((epshat)%*%ginv(SigHat)%*%t(epshat))
+
+  results<-c(result.latent,modres,mle,se)
+  results1 <- c(result.latent, mle, se)
+  return(results1)
+}
 ```
 
+The output of the latvarfunc is as follows:
+1	logOR_LCI	Lower 95% CI for the log odds ratio
+2	logOR	Point estimate for the log odds ratio
+3	logOR_UCI	Upper 95% CI for the log odds ratio
+4	logRR_LCI	Lower 95% CI for the log relative risk
+5	logRR	Point estimate for the log relative risk
+6	logRR_UCI	Upper 95% CI for the log relative risk
+7	RD_LCI	Lower 95% CI for the risk difference
+8	RD	Point estimate for the risk difference
+9	RD_UCI	Upper 95% CI for the risk difference
+
+
+Reprocessing tmpDat into the suitable format "inverted_data" for the LatVarfunc
+Requires setting columns in a specific order and inverting the data
+Column 1 is patient ID
+Column 2 is treatment (binary 0,1)
+Column 3 is gw32
+Column 4 is gw38
+Column 5 is Insulin (binary 0, 1)
+Make sure to remove ## for the code to run
+```{r}
+data <- tmpDat[,c("Label", "binary_group", "gw32", "gw38", "binary_insulin")]
+inverted_data <- data[complete.cases(data), ]
+inverted_data$binary_insulin <- ifelse(inverted_data$binary_insulin == 1, 0, 1)
+inverted_data$gw32 <- inverted_data$gw32 * -1
+inverted_data$gw38 <- inverted_data$gw38 * -1
+inverted_eta <- c(-5.1, -5.1) ## these are the "cut-off" points for the continuous variables
+results <- LatVarfunc(inverted_data, inverted_eta)
+names(results) <- c("logOR_LCI", "logOR", "logOR_UCI")
+```
+
+Power estimation of Latent variable analysis
+*Note that this takes a long time to run, and as such we only ran it for two sample sizes, 100 and 150*
+```{r}
+set.seed(24253739)
+power_function_null_dist <- function(n) {
+  power_result <- matrix(NA, nrow = 100, ncol = 3) 
+  i <- 1
+  repeat {
+    placebo_group <- inverted_data[inverted_data$binary_group == 0, ]
+    sampled_placebo <- placebo_group[sample(nrow(placebo_group), n/2, replace = TRUE), ]
+    
+    metformin_group <- inverted_data[inverted_data$binary_group == 1, ]
+    sampled_metformin <- metformin_group[sample(nrow(metformin_group), n/2, replace = TRUE), ]
+    
+    sampled_data <- rbind(sampled_placebo, sampled_metformin) ##Needed for latvarfunc?
+    inverted_eta <- c(-5.1, -5.1)
+
+    LatVarfunc_result1<- LatVarfunc(sampled_data, inverted_eta)
+
+    
+    
+    power_result[i, ] <- LatVarfunc_result1[1:3]
+    i<- i +1
+    if(i > 100) break}
+  return(sum(power_result[,1] > 0 | power_result[,3] < 0)/ 100)
+}
+sample_vector <- 100
+##null_dist_summed_TS_results <- sapply(sample_vector, function(n_value) {power_function_null_dist(n_value)})
+power_100_latvar<-0.99
+power_150_latvar <- 0.99
+```
+
+Type I error rate estimation of LatVarfunc
+*Takes a long time to run this, only ran it for sample sizes of 100 and 200*
+```{r}
+set.seed(24253739)
+type_1_error_func <- function(n) {
+  power_result <- matrix(NA, nrow = 100, ncol = 3) 
+  i <- 1
+  repeat {
+
+    sampled_data <- inverted_data[sample(nrow(inverted_data), n, replace = TRUE), ]
+    sampled_data$binary_group <- sample(rep(c(0, 1), each = n / 2))
+
+    inverted_eta <- c(-5.1, -5.1)
+
+    LatVarfunc_result1<- LatVarfunc(sampled_data, inverted_eta)
+
+    
+    
+    power_result[i, ] <- LatVarfunc_result1[1:3]
+    i<- i +1
+    if(i > 100) break}
+  return(sum(power_result[,1] > 0 | power_result[,3] < 0)/ 100)
+}
+sample_vector <- 200
+type_1_error <- sapply(sample_vector, function(n_value) { type_1_error_func(n_value)})
+
+type_1_error_rate_100 <- 0.49
+type_1_error_rate_200 <- 0.57
+```
+
+P-value Estimation of LatVarFunc
+```{r}
+rd <- -0.043
+LCI <- -0.0488
+UCI <- -0.0372
+
+se <- (rd-LCI)/1.96
+to_get_zero <- rd/se
+p_value_latvar <-2*(1-pnorm(abs(to_get_zero)))
+```
 
 ## Power Estimation
 Power estimation function
@@ -519,3 +897,8 @@ write.csv(simulated_data, "Simulated Inverted Emerge Data.csv", row.names = FALS
 
 ```
 
+
+## References
+ McMenamin, Martina, Jessica K Barrett, Anna Berglind, and James Ms Wason. 2021. “Employing a Latent
+ Variable Framework to Improve Efficiency in Composite Endpoint Analysis.” Statistical Methods in
+ Medical Research 30 (3): 702–16. https://doi.org/10.1177/0962280220970986.
