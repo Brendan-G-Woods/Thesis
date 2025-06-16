@@ -164,10 +164,12 @@ write.csv(null_normal_distribution.df, "Theoretical Summed null distribution.csv
 
 Plotting theoretical null distribution of summed test statistic composite
 ```{r}
-ggplot(data = null_normal_distribution.df, aes(x =null_normal_distribution )) + geom_histogram(bins =250, colour = "skyblue", fill = "skyblue") + labs(title = "Normal Null Distribution", x = "", y = "Frequency") +
-  theme_minimal() +   geom_vline(xintercept = quantile(null_normal_distribution, probs = c(0.025, 0.975)), color = "black", linetype = "dashed", linewidth = 0.75) + 
-  geom_vline( xintercept = study_summed_composite, color = "gold", size = 1 ) + 
-  annotate("text", x = study_summed_composite, y = 10000, label = "EMERGE Composite", color = "gold", angle = 90, vjust = -0.5)
+ggplot(data = null_normal_distribution.df, aes(x =null_normal_distribution )) + geom_histogram(bins =250, colour = "darksalmon", fill = "darksalmon") + labs(x = "Summed Composite Test Statistic (SC)", y = "Frequency") +
+  theme_minimal() +   geom_vline(xintercept = quantile(null_normal_distribution.df$null_normal_distribution, probs = c(0.025, 0.975)), color = "red", linetype = "dashed", linewidth = 0.75) + 
+  annotate("text", x = quantile(null_normal_distribution.df$null_normal_distribution, 0.025), y = 12000, label = "2.5th Percentile", color = "red", angle = 90, vjust = -0.5, size = 5)+
+  annotate("text", x = quantile(null_normal_distribution.df$null_normal_distribution, 0.975), y = 12000, label = "97.5th Percentile", color = "red", angle = 90, vjust = -0.5, size = 5)+
+  geom_vline( xintercept = study_summed_composite, color = "steelblue", size = 1 ) + 
+  annotate("text", x = study_summed_composite, y = 10000, label = "EMERGE (SC = -9.1)", color = "steelblue", angle = 90, vjust = -0.5)
 ```
 
 
@@ -192,14 +194,13 @@ write.csv(theoretical_null_squared, "Theoretical Squared null distribution.csv",
 ```
 Plotting theoretical null distribution of squared test statistic composite with eigenvalue weights
 ```{r}
-ggplot(data = theoretical_null_squared, aes(x =chi_sq )) + geom_histogram(bins =250, colour = "lightsalmon", fill = "lightsalmon") + labs(title = "", x = "", y = "") +
+ggplot(data = theoretical_null_squared, aes(x =chi_sq )) + geom_histogram(bins =250, colour = "lightsalmon", fill = "lightsalmon") + labs(x = "Squared Composite Test Statistic (QC)", y = "Frequency") +
   theme_minimal() + 
   geom_vline(xintercept = quantile(theoretical_null_squared$chi_sq, probs = c(0.95)), color = "red", linetype = "dashed", linewidth = 0.75) +
-  annotate("text", x = 8.2, y = 25000, label = "95th Percentile", color = "red", angle = 90, vjust = -0.5, size = 5) +
+  annotate("text", x = quantile(theoretical_null_squared$chi_sq, 0.95), y = 25000, label = "95th Percentile", color = "red", angle = 90, vjust = -0.5, size = 5) +
   theme(panel.grid.minor = element_blank())+
   geom_vline( xintercept = study_squared_composite, color = "steelblue", size = 1 ) + 
-  annotate("text", x = study_squared_composite, y = 25000, label = "Composite", color = "steelblue", angle = 90, vjust = -0.5, size = 5)
-
+  annotate("text", x = study_squared_composite, y = 25000, label = "Composite (QC = 29.2)", color = "steelblue", angle = 90, vjust = -0.5, size = 5)
 ```
 
 
@@ -487,15 +488,30 @@ inverted_data$binary_insulin <- ifelse(inverted_data$binary_insulin == 1, 0, 1)
 inverted_data$gw32 <- inverted_data$gw32 * -1
 inverted_data$gw38 <- inverted_data$gw38 * -1
 inverted_eta <- c(-5.1, -5.1) ## these are the "cut-off" points for the continuous variables
-results <- LatVarfunc(inverted_data, inverted_eta)
-names(results) <- c("logOR_LCI", "logOR", "logOR_UCI")
+results_lat_var <- LatVarfunc(inverted_data, inverted_eta)
+names(results_lat_var) <- c("logOR_LCI", "logOR", "logOR_UCI", "logRR_LCI", "logRR", "logRR_UCI", "RD_LCI", "RD", "RD_UCI",
+  "Prob_Treat", "Prob_Control", "alpha0", "alpha1", "beta0", "beta1", "psi0", "psi1", "log_sig1", "log_sig2",
+  "logit_rho12", "logit_rho13", "logit_rho23", "se_alpha0", "se_alpha1", "se_beta0", "se_beta1", "se_psi0", "se_psi1",
+  "se_log_sig1", "se_log_sig2", "se_logit_rho12", "se_logit_rho13", "se_logit_rho23")
+results_lat_var_df <- as.data.frame(t(results_lat_var))
+
+log_odds_ratio    <- round(as.numeric(results_lat_var_df[1, 1:3]), 3)
+log_risk_ratio    <- round(as.numeric(results_lat_var_df[1, 4:6]), 3)
+risk_difference   <- round(as.numeric(results_lat_var_df[1, 7:9]), 3)
+
+lat_var_results_table <- data.frame(Measure = c("Log Odds Ratio", "Log Risk Ratio", "Risk Difference"),
+  "Lower Confidence Interval" = c(log_odds_ratio[1], log_risk_ratio[1], risk_difference[1]),
+  `Point Estimate` = c(log_odds_ratio[2], log_risk_ratio[2], risk_difference[2]),
+  `Upper Confidence Interval` = c(log_odds_ratio[3], log_risk_ratio[3], risk_difference[3])
+)
+write.csv(lat_var_results_table, "Latent variable results table.csv", row.names = FALSE)
 ```
 
 Power estimation of Latent variable analysis
 *Note that this takes a long time to run, and as such we only ran it for two sample sizes, 100 and 150*
 ```{r}
 set.seed(24253739)
-power_function_null_dist <- function(n) {
+lat_var_power_function<- function(n) {
   power_result <- matrix(NA, nrow = 100, ncol = 3) 
   i <- 1
   repeat {
@@ -517,10 +533,10 @@ power_function_null_dist <- function(n) {
     if(i > 100) break}
   return(sum(power_result[,1] > 0 | power_result[,3] < 0)/ 100)
 }
-sample_vector <- 100
-##null_dist_summed_TS_results <- sapply(sample_vector, function(n_value) {power_function_null_dist(n_value)})
-power_100_latvar<-0.99
-power_150_latvar <- 0.99
+sample_vector <- 200
+lat_var_power_results <- sapply(sample_vector, function(n_value) {lat_var_power_function(n_value)})
+power_100_latvar<-0.83
+power_200_latvar <- 0.97
 ```
 
 Type I error rate estimation of LatVarfunc
@@ -607,7 +623,6 @@ sample_vector <- seq(from = 30, to = 540, by = 10)
 unified_power_results <- sapply(sample_vector, function(n_value) {
   power_function("gw32", "gw38", "binary_insulin", "binary_EMERGE", n_value)
 })
-unified_power_results_df <-unified_power_results
 unified_power_results_df <- as.data.frame(t(unified_power_results)) 
 colnames(unified_power_results_df) <- c("Permuted: Summed TS", "Permuted: Squared TS", "Asymptotic Chi-square: Eigenvalue weights TS", "EMERGE Composite", "Asymptotic Normal: Equal weights TS")
 unified_power_results_df$sample_size <- sample_vector
