@@ -205,7 +205,7 @@ ggplot(data = theoretical_null_squared, aes(x =chi_sq )) + geom_histogram(bins =
 
 
 ## Latent Variable Analysis McMenamin et al.
-The following code is from McMenamin et al. 2021 which has been modified to remove the code for baseline variables of the continuous outcomes.
+The following code is from McMenamin et al. 2021. It has been modified to remove the need for a baseline variable for the continuous variables.
 ```{r}
 #Likelihood function
 
@@ -480,6 +480,7 @@ Column 2 is treatment (binary 0,1)
 Column 3 is gw32
 Column 4 is gw38
 Column 5 is Insulin (binary 0, 1)
+
 Make sure to remove ## for the code to run
 ```{r}
 data <- tmpDat[,c("Label", "binary_group", "gw32", "gw38", "binary_insulin")]
@@ -487,6 +488,11 @@ inverted_data <- data[complete.cases(data), ]
 inverted_data$binary_insulin <- ifelse(inverted_data$binary_insulin == 1, 0, 1)
 inverted_data$gw32 <- inverted_data$gw32 * -1
 inverted_data$gw38 <- inverted_data$gw38 * -1
+inverted_data$baseline1 <- 0
+inverted_data$baseline1[2] <-0.001
+inverted_data$baseline2 <- 0
+inverted_data$baseline2[4] <- 0.001
+
 inverted_eta <- c(-5.1, -5.1) ## these are the "cut-off" points for the continuous variables
 results_lat_var <- LatVarfunc(inverted_data, inverted_eta)
 names(results_lat_var) <- c("logOR_LCI", "logOR", "logOR_UCI", "logRR_LCI", "logRR", "logRR_UCI", "RD_LCI", "RD", "RD_UCI",
@@ -508,7 +514,8 @@ write.csv(lat_var_results_table, "Latent variable results table.csv", row.names 
 ```
 
 Power estimation of Latent variable analysis
-*Note that this takes a long time to run, and as such we only ran it for two sample sizes, 100 and 150*
+*Note that this takes a long time to run, and as such we only ran it for two sample sizes, 100 and 200*
+Remove the double hashes to execute the power function
 ```{r}
 set.seed(24253739)
 lat_var_power_function<- function(n) {
@@ -534,13 +541,14 @@ lat_var_power_function<- function(n) {
   return(sum(power_result[,1] > 0 | power_result[,3] < 0)/ 100)
 }
 sample_vector <- 200
-lat_var_power_results <- sapply(sample_vector, function(n_value) {lat_var_power_function(n_value)})
+##lat_var_power_results <- sapply(sample_vector, function(n_value) {lat_var_power_function(n_value)})
 power_100_latvar<-0.83
 power_200_latvar <- 0.97
 ```
 
 Type I error rate estimation of LatVarfunc
 *Takes a long time to run this, only ran it for sample sizes of 100 and 200*
+Remove the double hashes to execute the type I error code
 ```{r}
 set.seed(24253739)
 type_1_error_func <- function(n) {
@@ -563,10 +571,10 @@ type_1_error_func <- function(n) {
   return(sum(power_result[,1] > 0 | power_result[,3] < 0)/ 100)
 }
 sample_vector <- 200
-type_1_error <- sapply(sample_vector, function(n_value) { type_1_error_func(n_value)})
+##type_1_error <- sapply(sample_vector, function(n_value) { type_1_error_func(n_value)})
 
-type_1_error_rate_100 <- 0.49
-type_1_error_rate_200 <- 0.57
+LVF_type_1_error_rate_100 <- 0.49
+LVF_type_1_error_rate_200 <- 0.57
 ```
 
 P-value Estimation of LatVarFunc
@@ -631,11 +639,11 @@ unified_power_results_df$sample_size <- sample_vector
 
 Plotting power estimation
 ```{r}
-power_100_latvar<-0.99
-power_150_latvar <- 0.99
+power_100_latvar<-0.83
+power_200_latvar <- 0.97
 
-LVF_power_df <- data.frame( power = c( 0.99, 0.99),
-                                   sample_size = c(100, 150),
+LVF_power_df <- data.frame( power = c( 0.83, 0.97),
+                                   sample_size = c(100, 200),
                                    label = "Latent Variable")
 power_long <- unified_power_results_df %>%
   pivot_longer(
@@ -737,9 +745,7 @@ colnames(type_1_error_rate_df) <- c("Permuted: Summed TS", "Permuted: Squared TS
 type_1_error_rate_df$sample_size <- sample_vector
 
 
-LVF_type_1_error_rate_100 <- 0.93
-LVF_type_1_error_rate_200 <- 0.96
-LVF_type_1_error_df <- data.frame( error_rate = c( 0.93, 0.96),
+LVF_type_1_error_df <- data.frame( error_rate = c( 0.49, 0.57),
                                    sample_size = c(100, 200),
                                    label = "Latent Variable")
 
