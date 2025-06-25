@@ -159,6 +159,14 @@ print(paste("P-value: ", p_value))
 null_normal_distribution.df <- data.frame(null_normal_distribution)
 write.csv(null_normal_distribution.df, "Theoretical Summed null distribution.csv", row.names = FALSE )
 
+
+size<-100000
+null_normal_distribution_small <- rnorm(size, mean = 0, sd = sqrt(variance))
+write.csv(null_normal_distribution_small, "Theoretical Summed null distribution small.csv", row.names = F)
+```
+the p-value can be estimated using pnorm() for the asymptotic distribution of the composite (SC)
+```{r}
+p_value_pnorm <- 2*pnorm(study_summed_composite, mean =0, sd = sqrt(variance))
 ```
 
 
@@ -190,7 +198,10 @@ print(paste("P-value: ", p_value))
 theoretical_null_squared <- data.frame(chi_sq = eigen_values_chi_sq)
 write.csv(theoretical_null_squared, "Theoretical Squared null distribution.csv", row.names = FALSE )
 
-
+size <- 100000
+simulated_chi_sq_matrix_small <- matrix(rchisq(size * 3, df = 1), ncol = 3)
+eigen_values_chi_sq_small<- simulated_chi_sq_matrix_small %*%eigen_values  
+write.csv(eigen_values_chi_sq_small, "Theoretical Squared null distribution small.csv", row.names = F)
 ```
 Plotting theoretical null distribution of squared test statistic composite with eigenvalue weights
 ```{r}
@@ -488,10 +499,6 @@ inverted_data <- data[complete.cases(data), ]
 inverted_data$binary_insulin <- ifelse(inverted_data$binary_insulin == 1, 0, 1)
 inverted_data$gw32 <- inverted_data$gw32 * -1
 inverted_data$gw38 <- inverted_data$gw38 * -1
-inverted_data$baseline1 <- 0
-inverted_data$baseline1[2] <-0.001
-inverted_data$baseline2 <- 0
-inverted_data$baseline2[4] <- 0.001
 
 inverted_eta <- c(-5.1, -5.1) ## these are the "cut-off" points for the continuous variables
 results_lat_var <- LatVarfunc(inverted_data, inverted_eta)
@@ -592,9 +599,9 @@ p_value_latvar <-2*(1-pnorm(abs(to_get_zero)))
 Power estimation function
 ```{r}
 power_function <- function(x, y, z, e, n) {
-  summed_TS_power_result <- numeric(1000)  
-  squared_TS_power_result <- numeric(1000)  
-  EMERGE_composite_power <- numeric(1000)
+  summed_TS_power_result <- numeric(10000)  
+  squared_TS_power_result <- numeric(10000)  
+  EMERGE_composite_power <- numeric(10000)
   i <- 1
   repeat {
     placebo_group <- tmpDat[tmpDat$Group == "Placebo", ]
@@ -616,12 +623,12 @@ power_function <- function(x, y, z, e, n) {
     squared_TS_power_result[i]<-(((t_test_result1$statistic)^2)+((t_test_result2$statistic)^2)+((t_test_result3$statistic)^2))
     EMERGE_composite_power[i] <- t_test_result4$p.value
     i<- i +1
-    if(i > 1000) break}
-  return(as.numeric(c(sum(summed_TS_power_result<quantile(permuted_null_distributions.df$permutation_summed_composite, 0.025)| summed_TS_power_result > quantile(permuted_null_distributions.df$permutation_summed_composite, 0.975))/ 1000,## permutation test summed
-         sum(squared_TS_power_result>quantile(permuted_null_distributions.df$permutation_squared_composite, 0.95))/ 1000, ##permutation test squared
-         sum(squared_TS_power_result > quantile(theoretical_null_squared$chi_sq, 0.95))/ 1000, ##asymptotic chi-square
-         sum((EMERGE_composite_power< 0.05))/ 1000, ## EMERGE
-         sum(summed_TS_power_result<quantile(null_normal_distribution, 0.025)| summed_TS_power_result > quantile(null_normal_distribution, 0.975))/ 1000)))
+    if(i > 10000) break}
+  return(as.numeric(c(sum(summed_TS_power_result<quantile(permuted_null_distributions.df$permutation_summed_composite, 0.025)| summed_TS_power_result > quantile(permuted_null_distributions.df$permutation_summed_composite, 0.975))/ 10000,## permutation test summed
+         sum(squared_TS_power_result>quantile(permuted_null_distributions.df$permutation_squared_composite, 0.95))/ 10000, ##permutation test squared
+         sum(squared_TS_power_result > quantile(theoretical_null_squared$chi_sq, 0.95))/ 10000, ##asymptotic chi-square
+         sum((EMERGE_composite_power< 0.05))/ 10000, ## EMERGE
+         sum(summed_TS_power_result<quantile(null_normal_distribution, 0.025)| summed_TS_power_result > quantile(null_normal_distribution, 0.975))/ 10000)))
 }
 ```
 
@@ -918,6 +925,27 @@ write.csv(simulated_data, "Simulated Inverted Emerge Data.csv", row.names = FALS
 
 ```
 
+
+
+##Comparing Asymptotic and permutation null distributions
+```{r}
+asymptotic_null_summed_small <- read.csv("Theoretical Summed null distribution small.csv")
+summed_composite_histogram.df <- data.frame(ts = c(permuted_null_distributions.df$permutation_summed_composite, asymptotic_null_summed_small$V1), group = rep(c("Permuted", "Theoretical"), c(length(permuted_null_distributions.df$permutation_summed_composite), nrow(asymptotic_null_summed_small))))
+                                                          
+ggplot(data = summed_composite_histogram.df, aes(x =ts, fill = group )) + geom_histogram(bins =250, alpha = 0.5, position = "identity") + labs(x = "Summed Composite Test Statistic (SC)", y = "Frequency") +
+  theme_minimal() + theme(panel.grid.minor = element_blank()) +
+  scale_fill_manual(values = c("yellow", "skyblue"), name = "Method")
+```
+
+```{r}
+asymptotic_null_sq_small <- read.csv("Theoretical Squared null distribution small.csv")
+
+squared_composite_histogram.df <- data.frame(ts = c(permuted_null_distributions.df$permutation_squared_composite, asymptotic_null_sq_small$V1), group = rep(c("Permuted", "Theoretical"), c(length(permuted_null_distributions.df$permutation_squared_composite), nrow(asymptotic_null_sq_small))))
+                                                          
+ggplot(data = squared_composite_histogram.df, aes(x =ts, fill = group )) + geom_histogram(bins =250, alpha = 0.5, position = "identity") + labs(x = "Squared Composite Test Statistic (QC)", y = "Frequency") +
+  theme_minimal() + theme(panel.grid.minor = element_blank()) +
+  scale_fill_manual(values = c("yellow", "skyblue"), name = "Method")
+```
 
 ## References
  McMenamin, Martina, Jessica K Barrett, Anna Berglind, and James Ms Wason. 2021. “Employing a Latent
