@@ -1,0 +1,178 @@
+# Load required libraries
+library(ggplot2)
+library(hrbrthemes)
+library(readr)
+library(GGally) # For ggpairs
+library(dplyr)
+
+# Load the dataset
+data <- read.csv("~/Desktop/thesis/data.csv")
+
+# Function to remove outliers based on IQR
+remove_outliers <- function(x) {
+  Q1 <- quantile(x, 0.25, na.rm = TRUE)
+  Q3 <- quantile(x, 0.75, na.rm = TRUE)
+  IQR <- Q3 - Q1
+  lower_bound <- Q1 - 1.5 * IQR
+  upper_bound <- Q3 + 1.5 * IQR
+  x[x < lower_bound | x > upper_bound] <- NA # Mark outliers as NA
+  return(x)
+}
+
+# Function to replace NA values with mean, median, or mode
+replace_na <- function(x, method = "mean") {
+  if (method == "mean") {
+    x[is.na(x)] <- mean(x, na.rm = TRUE)
+  } else if (method == "median") {
+    x[is.na(x)] <- median(x, na.rm = TRUE)
+  } else if (method == "mode") {
+    mode_value <- names(sort(table(x), decreasing = TRUE))[1]
+    x[is.na(x)] <- mode_value
+  }
+  return(x)
+}
+
+# Remove outliers and treat missing values for numerical columns
+data$gw32 <- remove_outliers(data$gw32)
+data$gw32 <- replace_na(data$gw32, method = "mean") # Replace NA with mean
+
+data$gw38 <- remove_outliers(data$gw38)
+data$gw38 <- replace_na(data$gw38, method = "median") # Replace NA with median
+
+# Treat NA for categorical variables using mode
+data$InsulinYN <- replace_na(data$InsulinYN, method = "mode")
+
+# Create a summary table for variables of interest
+summary_table <- data.frame(
+  Variable = c("Gestational Week 32", "Gestational Week 38", "Insulin (Yes)", "Metformin Group", "Placebo Group"),
+  Mean = c(
+    mean(data$gw32, na.rm = TRUE),
+    mean(data$gw38, na.rm = TRUE),
+    sum(data$InsulinYN == "Yes", na.rm = TRUE),
+    sum(data$Group == "Metformin"),
+    sum(data$Group == "Placebo")
+  ),
+  SD = c(
+    sd(data$gw32, na.rm = TRUE),
+    sd(data$gw38, na.rm = TRUE),
+    NA, # Standard deviation not applicable for count variables
+    NA,
+    NA
+  )
+)
+
+# Display the summary table
+library(kableExtra)
+kable(summary_table, caption = "Summary Table for Variables of Interest") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed"))
+
+# Create a binary column for Insulin
+data$binary_insulin <- 0
+data$binary_insulin[data$InsulinYN == "Yes"] <- 1
+
+# Proportion test for Insulin usage between groups
+StudyInsulinTest <- prop.test(
+  x = c(
+    sum(data$InsulinYN[data$Group == "Metformin"] == "Yes", na.rm = TRUE),
+    sum(data$InsulinYN[data$Group == "Placebo"] == "Yes", na.rm = TRUE)
+  ),
+  n = c(
+    sum(data$Group == "Metformin"),
+    sum(data$Group == "Placebo")
+  )
+)
+print(StudyInsulinTest)
+
+# Perform t-tests for binary_insulin, gw32, and gw38
+insulin_t <- t.test(data$binary_insulin ~ data$Group)
+gw32_t <- t.test(data$gw32 ~ data$Group)
+gw38_t <- t.test(data$gw38 ~ data$Group)
+
+# Print the t-test results
+cat("T-test Results:\n")
+print(insulin_t)
+print(gw32_t)
+print(gw38_t)
+
+# Calculate composite scores
+study_squared_composite <- (insulin_t$statistic^2) + (gw32_t$statistic^2) + (gw38_t$statistic^2)
+study_non_squared_composite <- insulin_t$statistic + gw32_t$statistic + gw38_t$statistic
+
+cat("\nComposite Scores:\n")
+cat("Squared Composite:", study_squared_composite, "\n")
+cat("Non-Squared Composite:", study_non_squared_composite, "\n")
+
+# Visualization: Proportion of Insulin Usage by Group
+ggplot(data, aes(x = Group, fill = InsulinYN)) +
+  geom_bar(position = "fill") +
+  labs(
+    title = "Proportion of Insulin Usage by Group",
+    y = "Proportion",
+    x = "Group"
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal()
+
+# Visualization: Boxplots for gw32 and gw38
+ggplot(data, aes(x = Group, y = gw32, fill = Group)) +
+  geom_boxplot() +
+  labs(
+    title = "Gestational Week 32 by Group",
+    y = "Week 32",
+    x = "Group"
+  ) +
+  theme_minimal()
+
+ggplot(data, aes(x = Group, y = gw38, fill = Group)) +
+  geom_boxplot() +
+  labs(
+    title = "Gestational Week 38 by Group",
+    y = "Week 38",
+    x = "Group"
+  ) +
+  theme_minimal()
+
+# Visualization: T-Value Contributions
+t_values <- data.frame(
+  Metric = c("Binary Insulin", "GW32", "GW38"),
+  T_Value = c(insulin_t$statistic, gw32_t$statistic, gw38_t$statistic)
+)
+
+ggplot(t_values, aes(x = Metric, y = T_Value, fill = Metric)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "T-Values for Metrics",
+    x = "Metric",
+    y = "T-Value"
+  ) +
+  theme_minimal()
+
+# Calculate the Pearson correlation matrix for selected variables
+correlation_vars <- data %>%
+  select(gw32, gw38, binary_insulin) # Add other numerical columns if needed
+correlation_matrix <- cor(correlation_vars, use = "complete.obs", method = "pearson")
+
+cat("Correlation Matrix (Pearson):\n")
+print(correlation_matrix)
+
+# Plot the correlation matrix as a heatmap
+library(reshape2) # For melting the correlation matrix
+correlation_melted <- melt(correlation_matrix)
+
+ggplot(correlation_melted, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = round(value, 2)), color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  labs(
+    title = "Correlation Matrix (Pearson)",
+    x = "Variables",
+    y = "Variables"
+  ) +
+  theme_minimal()
+
+# Perform grouped bivariate analysis with ggpairs
+ggpairs(data, 
+        columns = c("gw32", "gw38", "binary_insulin"), 
+        mapping = aes(color = Group), 
+        lower = list(continuous = "smooth"),
+        title = "Grouped Bivariate Analysis with ggpairs")
